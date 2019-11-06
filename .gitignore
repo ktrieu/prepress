@@ -5,8 +5,9 @@
 !.vscode/extensions.json
 *.code-workspace
 
-#the script generates an assets folder
+#ignore script generated files
 assets/
+issue.xml
 
 #ignore wordpress dump
 wordpress_dump.xml

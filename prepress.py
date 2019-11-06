@@ -1,7 +1,7 @@
 import argparse
 import os.path
 from xml.etree import ElementTree
-from xml.etree.ElementTree import Element
+from xml.etree.ElementTree import Element, SubElement
 from typing import List, Callable
 import re
 import itertools
@@ -31,6 +31,13 @@ class Article:
         file_prefix = self.title[0:10].encode('ascii', errors='ignore').decode().replace(' ', '_')
         filename = file_prefix + '_' + file
         return os.path.join(ASSET_DIR, 'pdf', filename)
+    
+    def to_xml_element(self) -> Element:
+        article_tag = Element('article')
+        title_tag = SubElement(article_tag, 'title')
+        title_tag.text = self.title
+        article_tag.text = self.content
+        return article_tag
 
 def is_for_issue(article_tag: Element, issue_num: str) -> bool:
     """Returns True if the article given by the <item> tag article_tag
@@ -137,5 +144,10 @@ if __name__ == "__main__":
     for process in POST_PROCESS:
         print(f'Running post-process pass: {process.__name__}')
         articles = map(process, articles)
-    print(f'Outputting dump to {OUTPUT_FILE}')
-    
+    print(f'Writing dump to {OUTPUT_FILE}...')
+    root = Element('issue')
+    for article in articles:
+        root.append(article.to_xml_element())
+    out_tree = ElementTree.ElementTree(root)
+    out_tree.write(OUTPUT_FILE)
+    print('Dump written.')
