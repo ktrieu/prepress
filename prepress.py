@@ -21,6 +21,17 @@ class Article:
         #content is stored as HTML
         self.content = ''
 
+    def get_image_location(self, file):
+        #generate a slug by trimming the title, replacing non-ascii chars, and replacing spaces
+        file_prefix = self.title[0:10].encode('ascii', errors='ignore').decode().replace(' ', '_')
+        filename = file_prefix + '_' + file
+        return os.path.join(ASSET_DIR, 'img', filename)
+
+    def get_pdf_location(self, file):
+        file_prefix = self.title[0:10].encode('ascii', errors='ignore').decode().replace(' ', '_')
+        filename = file_prefix + '_' + file
+        return os.path.join(ASSET_DIR, 'pdf', filename)
+
 def is_for_issue(article_tag: Element, issue_num: str) -> bool:
     """Returns True if the article given by the <item> tag article_tag
     belongs to the issue given by issue_num.
@@ -55,15 +66,12 @@ def download_images(article: Article):
     them as an asset. Then, it changes the link text to point to the local copy instead of 
     the web copy.
     """
-    #generate a slug to make file names more human readable
-    file_prefix = article.title[0:10].encode('ascii', errors='ignore').decode().replace(' ', '_')
     #a regex *should* be ok, and it would be wasteful to start up a whole HTML parser for each article
     image_regex = r'src="([^"]*)"'
-    #matches is a nested list, so we have to unpack it
     urls = re.findall(image_regex, article.content)
     for url in urls:
         filename = os.path.basename(urllib.parse.urlparse(url).path)
-        local_path = get_image_location(file_prefix + '_' + filename)
+        local_path = article.get_image_location(filename)
         try:
             urllib.request.urlretrieve(url, local_path)
             #we have to add the src here or it might replace the url when mentioned in text
@@ -92,15 +100,6 @@ def create_asset_dirs():
         os.makedirs(os.path.join(ASSET_DIR, 'img'))
     if not os.path.isdir(os.path.join(ASSET_DIR, 'pdf')):
         os.makedirs(os.path.join(ASSET_DIR, 'pdf'))
-
-
-def get_image_location(file: str):
-    """Given an image filename, returns a path to store it."""
-    return os.path.join(ASSET_DIR, 'img', file)
-
-def get_pdf_location(file: str):
-    """Given a PDF filename, returns a path to store it."""
-    return os.path.join(ASSET_DIR, 'pdf', file)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='article export for mathNEWS')
