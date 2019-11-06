@@ -68,17 +68,20 @@ def download_images(article: Article):
     """
     #a regex *should* be ok, and it would be wasteful to start up a whole HTML parser for each article
     image_regex = r'src="([^"]*)"'
-    urls = re.findall(image_regex, article.content)
-    for url in urls:
+    url_matches = re.finditer(image_regex, article.content)
+    for match in url_matches:
+        url = match.group(1)
         filename = os.path.basename(urllib.parse.urlparse(url).path)
         local_path = article.get_image_location(filename)
         try:
             urllib.request.urlretrieve(url, local_path)
-            #we have to add the src here or it might replace the url when mentioned in text
-            #we add the file:// so InDesign will load it properly
-            article.content = article.content.replace('src="' + url, 'src="file://' + local_path)
+            #replace the match
+            url_start, url_end = match.span(1)
+            #edit out the matched group and insert the new local path in its place
+            article.content = article.content[0:url_start] + 'file://' + local_path + article.content[url_end:]
         except urllib.error.HTTPError as e:
             print(f'Error downloading image {url}. Reason: {e}')
+    print(article.content)
     return article
 
 """POST_PROCESS is a list of functions that take Article instances and return Article instances. 
