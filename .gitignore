@@ -5,3 +5,6 @@
 !.vscode/launch.json
 !.vscode/extensions.json
 *.code-workspace
+
+#the script generates an assets folder
+assets/
