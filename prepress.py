@@ -83,6 +83,12 @@ def download_images(article: Article) -> Article:
             print(f'Error downloading image {url}. Reason: {e}')
     return article
 
+def remove_list_tabs(article: Article) -> Article:
+    """Removes leading tabs before <li> elements so they don't show up in InDesign
+    """
+    article.content = article.content.replace('\t<li', '<li')
+    return article
+
 """POST_PROCESS is a list of functions that take Article instances and return Article instances. 
 
 For each article we parse, every function in this list will be applied to it in order, and the 
@@ -91,7 +97,8 @@ result saved back to the article list.
 Use this to make any changes to articles you need before export, as well as to generate assets.
 """
 POST_PROCESS: List[Callable[[Article], Article]] = [
-    download_images
+    download_images,
+    remove_list_tabs
 ]
 
 #The directory to store generated assets. Can be changed by command line argument.
