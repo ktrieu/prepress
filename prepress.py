@@ -96,6 +96,12 @@ def remove_list_tabs(article: Article) -> Article:
     article.content = article.content.replace('\t<li', '<li')
     return article
 
+def replace_ellipses(article: Article) -> Article:
+    """Replaces "..." with one single ellipse character
+    """
+    article.content = article.content.replace('...', '…')
+    return article
+
 """POST_PROCESS is a list of functions that take Article instances and return Article instances. 
 
 For each article we parse, every function in this list will be applied to it in order, and the 
@@ -105,7 +111,8 @@ Use this to make any changes to articles you need before export, as well as to g
 """
 POST_PROCESS: List[Callable[[Article], Article]] = [
     download_images,
-    remove_list_tabs
+    remove_list_tabs,
+    replace_ellipses
 ]
 
 #The directory to store generated assets. Can be changed by command line argument.
