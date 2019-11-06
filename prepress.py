@@ -21,13 +21,13 @@ class Article:
         #content is stored as HTML
         self.content = ''
 
-    def get_image_location(self, file):
+    def get_image_location(self, file: str) -> str:
         #generate a slug by trimming the title, replacing non-ascii chars, and replacing spaces
         file_prefix = self.title[0:10].encode('ascii', errors='ignore').decode().replace(' ', '_')
         filename = file_prefix + '_' + file
         return os.path.join(ASSET_DIR, 'img', filename)
 
-    def get_pdf_location(self, file):
+    def get_pdf_location(self, file: str) -> str:
         file_prefix = self.title[0:10].encode('ascii', errors='ignore').decode().replace(' ', '_')
         filename = file_prefix + '_' + file
         return os.path.join(ASSET_DIR, 'pdf', filename)
@@ -61,7 +61,7 @@ def filter_articles(tree: ElementTree, issue_num: str) -> List[Article]:
         articles.append(article)
     return articles
 
-def download_images(article: Article):
+def download_images(article: Article) -> Article:
     """Looks through the article content for image tags and downloads them locally and saves
     them as an asset. Then, it changes the link text to point to the local copy instead of 
     the web copy.
