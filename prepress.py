@@ -81,7 +81,6 @@ def download_images(article: Article):
             article.content = article.content[0:url_start] + 'file://' + local_path + article.content[url_end:]
         except urllib.error.HTTPError as e:
             print(f'Error downloading image {url}. Reason: {e}')
-    print(article.content)
     return article
 
 """POST_PROCESS is a list of functions that take Article instances and return Article instances. 
