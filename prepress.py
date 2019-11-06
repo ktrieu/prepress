@@ -69,7 +69,6 @@ def download_images(article: Article):
             #we have to add the src here or it might replace the url when mentioned in text
             #we add the file:// so InDesign will load it properly
             article.content = article.content.replace('src="' + url, 'src="file://' + local_path)
-            print(article.content)
         except urllib.error.HTTPError as e:
             print(f'Error downloading image {url}. Reason: {e}')
     return article
