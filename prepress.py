@@ -103,6 +103,8 @@ POST_PROCESS: List[Callable[[Article], Article]] = [
 
 #The directory to store generated assets. Can be changed by command line argument.
 ASSET_DIR = 'assets'
+#The location of the output file. Can be changed by command line argument'
+OUTPUT_FILE = 'issue.xml'
 
 def create_asset_dirs():
     if not os.path.isdir(os.path.join(ASSET_DIR, 'img')):
@@ -113,22 +115,27 @@ def create_asset_dirs():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='article export for mathNEWS')
     parser.add_argument('issue', help='the issue number to export for, e.g, v141i3')
-    parser.add_argument('xml', help='location of the XML file')
+    parser.add_argument('xml_dump', help='location of the XML dump to read from')
+    parser.add_argument('-o', '--xml_output', 
+        help='location of the file to output to',
+        default='issue.xml')
     parser.add_argument('-a', '--assets',
         help='a folder to store asset files to',
         default='assets')
     args = parser.parse_args()
     ASSET_DIR = args.assets
     create_asset_dirs()
-    if not os.path.isfile(args.xml):
-        print(f'{args.xml} does not exist.')
+    OUTPUT_FILE = args.xml_output
+    if not os.path.isfile(args.xml_dump):
+        print(f'{args.xml_dump} does not exist.')
         exit(1)
     print('Parsing XML...')
-    tree = ElementTree.parse(args.xml)
+    tree = ElementTree.parse(args.xml_dump)
     print('Filtering articles...')
     articles = filter_articles(tree, args.issue)
     print('Post-processing articles...')
     for process in POST_PROCESS:
         print(f'Running post-process pass: {process.__name__}')
         articles = map(process, articles)
-    list(articles)
+    print(f'Outputting dump to {OUTPUT_FILE}')
+    
