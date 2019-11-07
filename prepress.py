@@ -158,10 +158,10 @@ if __name__ == "__main__":
     for process in POST_PROCESS:
         print(f'Running post-process pass: {process.__name__}')
         articles = map(process, articles)
-    print(f'Writing dump to {OUTPUT_FILE}...')
+    print(f'Writing issue to {OUTPUT_FILE}...')
     root = Element('issue')
     for article in articles:
         root.append(article.to_xml_element())
     out_tree = ElementTree.ElementTree(root)
     out_tree.write(OUTPUT_FILE)
-    print('Dump written.')
+    print('Issue written.')
