@@ -9,6 +9,8 @@ import urllib.request
 import urllib.parse
 import urllib.error
 
+from bs4 import BeautifulSoup
+
 XML_NS = {
     'content': 'http://purl.org/rss/1.0/modules/content/'
 }
@@ -18,8 +20,8 @@ class Article:
     def __init__(self):
         self.author = ''
         self.title = ''
-        #content is stored as HTML
-        self.content = ''
+        #content is stored as a beautiful soup tree
+        self.content: BeautifulSoup = None
 
     def get_image_location(self, file: str) -> str:
         #generate a slug by trimming the title, replacing non-ascii chars, and replacing spaces
@@ -36,7 +38,7 @@ class Article:
         article_tag = Element('article')
         title_tag = SubElement(article_tag, 'title')
         title_tag.text = self.title
-        article_tag.text = self.content
+        article_tag.text = str(self.content)
         return article_tag
 
 def is_for_issue(article_tag: Element, issue_num: str) -> bool:
@@ -64,7 +66,8 @@ def filter_articles(tree: ElementTree, issue_num: str) -> List[Article]:
         article.title = article_tag.find('title').text
         #we will post process this later
         article.author = 'UNKNOWN AUTHOR'
-        article.content = article_tag.find('content:encoded', XML_NS).text
+        article_text_content = article_tag.find('content:encoded', XML_NS).text
+        article.content = BeautifulSoup(article_text_content, 'html.parser')
         articles.append(article)
     return articles
 
@@ -117,10 +120,6 @@ result saved back to the article list.
 Use this to make any changes to articles you need before export, as well as to generate assets.
 """
 POST_PROCESS: List[Callable[[Article], Article]] = [
-    download_images,
-    remove_list_tabs,
-    replace_ellipses,
-    add_smart_quotes
 ]
 
 #The directory to store generated assets. Can be changed by command line argument.
