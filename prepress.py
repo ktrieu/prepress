@@ -9,7 +9,8 @@ import urllib.request
 import urllib.parse
 import urllib.error
 
-from bs4 import BeautifulSoup
+import bs4
+from bs4 import BeautifulSoup, Tag
 
 XML_NS = {
     'content': 'http://purl.org/rss/1.0/modules/content/'
@@ -96,14 +97,20 @@ def download_images(article: Article) -> Article:
 def replace_ellipses(article: Article) -> Article:
     """Replaces "..." with one single ellipse character
     """
-    article.content = article.content.replace('...', '…')
+    text_tag: bs4.NavigableString
+    for text_tag in article.content.find_all(text=True):
+        new_tag = text_tag.replace('...', '…')
+        text_tag.replace_with(new_tag)
     return article
 
 def add_smart_quotes(article: Article) -> Article:
     """Replaces regular quotes with smart quotes. This function assumes quotes are not nested
     and will simply convert pairs of quotes into left and right quotes.
     """
-    article.content = re.sub(r'"([^".]*)"', r'“\1”', article.content)
+    text_tag: bs4.NavigableString
+    for text_tag in article.content.find_all(text=True):
+        new_tag = re.sub(r'"([^".]*)"', r'“\1”', text_tag)
+        text_tag.replace_with(new_tag)
     return article
 
 """POST_PROCESS is a list of functions that take Article instances and return Article instances. 
@@ -114,6 +121,8 @@ result saved back to the article list.
 Use this to make any changes to articles you need before export, as well as to generate assets.
 """
 POST_PROCESS: List[Callable[[Article], Article]] = [
+    replace_ellipses,
+    add_smart_quotes
 ]
 
 #The directory to store generated assets. Can be changed by command line argument.
