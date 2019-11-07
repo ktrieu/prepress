@@ -102,6 +102,13 @@ def replace_ellipses(article: Article) -> Article:
     article.content = article.content.replace('...', '…')
     return article
 
+def add_smart_quotes(article: Article) -> Article:
+    """Replaces regular quotes with smart quotes. This function assumes quotes are not nested
+    and will simply convert pairs of quotes into left and right quotes.
+    """
+    article.content = re.sub(r'"([^".]*)"', r'“\1”', article.content)
+    return article
+
 """POST_PROCESS is a list of functions that take Article instances and return Article instances. 
 
 For each article we parse, every function in this list will be applied to it in order, and the 
@@ -112,7 +119,8 @@ Use this to make any changes to articles you need before export, as well as to g
 POST_PROCESS: List[Callable[[Article], Article]] = [
     download_images,
     remove_list_tabs,
-    replace_ellipses
+    replace_ellipses,
+    add_smart_quotes
 ]
 
 #The directory to store generated assets. Can be changed by command line argument.
