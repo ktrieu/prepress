@@ -93,12 +93,6 @@ def download_images(article: Article) -> Article:
             print(f'Error downloading image {url}. Reason: {e}')
     return article
 
-def remove_list_tabs(article: Article) -> Article:
-    """Removes leading tabs before <li> elements so they don't show up in InDesign
-    """
-    article.content = article.content.replace('\t<li', '<li')
-    return article
-
 def replace_ellipses(article: Article) -> Article:
     """Replaces "..." with one single ellipse character
     """
