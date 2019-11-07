@@ -77,19 +77,14 @@ def download_images(article: Article) -> Article:
     them as an asset. Then, it changes the link text to point to the local copy instead of 
     the web copy.
     """
-    #a regex *should* be ok, and it would be wasteful to start up a whole HTML parser for each article
-    image_regex = r'src="([^"]*)"'
-    url_matches = re.finditer(image_regex, article.content)
-    for match in url_matches:
-        url = match.group(1)
+    img_tag: Tag
+    for img_tag in article.content.find_all('img'):
+        url = img_tag.attrs['src']
         filename = os.path.basename(urllib.parse.urlparse(url).path)
         local_path = article.get_image_location(filename)
         try:
             urllib.request.urlretrieve(url, local_path)
-            #replace the match
-            url_start, url_end = match.span(1)
-            #edit out the matched group and insert the new local path in its place
-            article.content = article.content[0:url_start] + 'file://' + local_path + article.content[url_end:]
+            img_tag.attrs['src'] = 'file://' + local_path
         except urllib.error.HTTPError as e:
             print(f'Error downloading image {url}. Reason: {e}')
     return article
@@ -109,6 +104,7 @@ def add_smart_quotes(article: Article) -> Article:
     """
     text_tag: bs4.NavigableString
     for text_tag in article.content.find_all(text=True):
+        #\1 will sub in the first matched group
         new_tag = re.sub(r'"([^".]*)"', r'“\1”', text_tag)
         text_tag.replace_with(new_tag)
     return article
@@ -121,6 +117,7 @@ result saved back to the article list.
 Use this to make any changes to articles you need before export, as well as to generate assets.
 """
 POST_PROCESS: List[Callable[[Article], Article]] = [
+    download_images,
     replace_ellipses,
     add_smart_quotes
 ]
