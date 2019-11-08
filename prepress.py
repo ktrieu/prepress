@@ -109,7 +109,7 @@ def add_smart_quotes(article: Article) -> Article:
     text_tag: bs4.NavigableString
     for text_tag in article.content.find_all(text=True):
         #\1 will sub in the first matched group
-        new_tag = re.sub(r'"([^".]*)"', r'“\1”', text_tag)
+        new_tag = re.sub(r'"([^"]*)"', r'“\1”', text_tag)
         text_tag.replace_with(new_tag)
     return article
 
