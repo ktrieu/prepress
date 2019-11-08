@@ -8,6 +8,7 @@ import itertools
 import urllib.request
 import urllib.parse
 import urllib.error
+import html
 
 import bs4
 from bs4 import BeautifulSoup, Tag
@@ -164,6 +165,6 @@ if __name__ == "__main__":
     root = Element('issue')
     for article in articles:
         root.append(article.to_xml_element())
-    out_tree = ElementTree.ElementTree(root)
-    out_tree.write(OUTPUT_FILE)
+    with open(OUTPUT_FILE, 'w', encoding='utf-8') as output_file:
+        output_file.write(html.unescape(ElementTree.tostring(root, encoding='unicode')))
     print('Issue written.')
