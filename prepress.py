@@ -84,7 +84,9 @@ def download_images(article: Article) -> Article:
         local_path = article.get_image_location(filename)
         try:
             urllib.request.urlretrieve(url, local_path)
-            img_tag.attrs['src'] = 'file://' + local_path
+            #InDesign recognizes <link href=""> tags for images
+            img_tag.name = 'link'
+            img_tag.attrs['href'] = 'file://' + local_path
         except urllib.error.HTTPError as e:
             print(f'Error downloading image {url}. Reason: {e}')
     return article
