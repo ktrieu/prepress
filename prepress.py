@@ -40,7 +40,8 @@ class Article:
         article_tag = Element('article')
         title_tag = SubElement(article_tag, 'title')
         title_tag.text = self.title
-        article_tag.text = str(self.content)
+        content_tag = SubElement(article_tag, 'content')
+        content_tag.text = str(self.content)
         return article_tag
 
 def is_for_issue(article_tag: Element, issue_num: str) -> bool:
