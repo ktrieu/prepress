@@ -41,7 +41,8 @@ class Article:
     def to_xml_element(self) -> Element:
         article_tag = Element('article')
         title_tag = SubElement(article_tag, 'title')
-        title_tag.text = self.title
+        #automatically add a newline to the title so content will start on a newline
+        title_tag.text = self.title + '\n'
         content_tag = SubElement(article_tag, 'content')
         content_tag.text = str(self.content)
         return article_tag
