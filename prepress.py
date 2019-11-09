@@ -9,6 +9,7 @@ import urllib.request
 import urllib.parse
 import urllib.error
 import html
+import shutil
 
 import bs4
 from bs4 import BeautifulSoup, Tag
@@ -160,6 +161,7 @@ if __name__ == "__main__":
         default='assets')
     args = parser.parse_args()
     ASSET_DIR = args.assets
+    shutil.rmtree(ASSET_DIR, ignore_errors=True)
     create_asset_dirs()
     OUTPUT_FILE = args.xml_output
     if not os.path.isfile(args.xml_dump):
