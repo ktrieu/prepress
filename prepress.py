@@ -13,6 +13,7 @@ import shutil
 
 import bs4
 from bs4 import BeautifulSoup, Tag
+import pylatex
 
 XML_NS = {
     'content': 'http://purl.org/rss/1.0/modules/content/'
@@ -94,6 +95,59 @@ def download_images(article: Article) -> Article:
             print(f'Error downloading image {url}. Reason: {e}')
     return article
 
+def is_latex(latex: str):
+    """Applies some heuristics to determine whether latex is really LaTeX or just
+    some text caught in between two dollar signs.
+    """
+    return '\\' in latex
+
+def compile_latex_str(latex: str, filename: str):
+    """Compiles the string latex into a PDF, and saves it to filename.
+    """
+    document = pylatex.Document()
+    document.packages.append(pylatex.Package('amsfonts'))
+    document.packages.append(pylatex.Package('amsmath'))
+    document.append(pylatex.NoEscape(r'\thispagestyle{empty}'))
+    document.append(pylatex.NoEscape(' $' + latex + '$ '))
+    document.generate_pdf(filename, compiler='pdflatex')
+
+def compile_latex(article: Article) -> Article:
+    """Looks through the article content for embedded LaTeX and compiles it into
+    PDFs, and adds the proper tags so they show up on import.
+    """
+    text_tag: bs4.NavigableString
+    #matches LaTeX inside one or two dollar signs
+    inline_regex = r'\$?\$([^\$]+)\$\$?'
+    for text_tag in article.content.find_all(text=True):
+        p = re.compile(inline_regex)
+        for match in p.finditer(text_tag):
+            latex = match.group(1)
+            if not is_latex(latex):
+                continue
+            #just use the hash of the latex for a unique filename, this should probably never collide
+            filename = article.get_pdf_location(str(hash(latex)))
+            compile_latex_str(latex, filename)
+            #if we can't find the parent, assume it's just the document
+            parent: Tag
+            if text_tag.parent == None or text_tag.parent.name == '[document]':
+                parent = article.content
+            else:
+                parent = text_tag.parent
+            tag_idx = parent.contents.index(text_tag)
+            #replace the matched latex with a link tag
+            begin, end = text_tag.split(match.group(0))
+            #convert these strings to tags
+            begin = bs4.NavigableString(begin)
+            end = bs4.NavigableString(end)
+            text_tag.replace_with(begin)
+            #the latex compiler will automatically add a .pdf so we have to add one too
+            link_tag = Tag(name='link', attrs={'href': 'file://' + filename + '.pdf'})
+            parent.insert(tag_idx + 1, link_tag)
+            parent.insert(tag_idx + 2, end)
+            #set the current tag to the new end tag
+            text_tag = end
+    return article
+
 def replace_ellipses(article: Article) -> Article:
     """Replaces "..." with one single ellipse character
     """
@@ -133,6 +187,7 @@ Use this to make any changes to articles you need before export, as well as to g
 """
 POST_PROCESS: List[Callable[[Article], Article]] = [
     download_images,
+    compile_latex,
     replace_ellipses,
     replace_dashes,
     add_smart_quotes
