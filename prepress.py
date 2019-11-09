@@ -102,6 +102,16 @@ def replace_ellipses(article: Article) -> Article:
         text_tag.replace_with(new_tag)
     return article
 
+def replace_dashes(article: Article) -> Article:
+    """Replaces hyphens used as spacing, that is, when they are surrounded with spaces,
+    with em dashes.
+    """
+    text_tag: bs4.NavigableString
+    for text_tag in article.content.find_all(text=True):
+        new_tag = text_tag.replace(' - ', ' — ')
+        text_tag.replace_with(new_tag)
+    return article
+
 def add_smart_quotes(article: Article) -> Article:
     """Replaces regular quotes with smart quotes. This function assumes quotes are not nested
     and will simply convert pairs of quotes into left and right quotes.
@@ -123,6 +133,7 @@ Use this to make any changes to articles you need before export, as well as to g
 POST_PROCESS: List[Callable[[Article], Article]] = [
     download_images,
     replace_ellipses,
+    replace_dashes,
     add_smart_quotes
 ]
 
