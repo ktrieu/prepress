@@ -245,12 +245,13 @@ if __name__ == "__main__":
     articles = filter_articles(tree, args.issue)
     print('Post-processing articles...')
     for process in POST_PROCESS:
-        print(f'Running post-process pass: {process.__name__}')
+        print(f'Post-process pass: {process.__name__}')
         articles = map(process, articles)
-    print(f'Writing issue to {OUTPUT_FILE}...')
+    print(f'Post-processing...')
     root = Element('issue')
     for article in articles:
         root.append(article.to_xml_element())
+    print(f'Writing to {OUTPUT_FILE}...')
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as output_file:
         output_file.write(html.unescape(ElementTree.tostring(root, encoding='unicode')))
     print('Issue written.')
