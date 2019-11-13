@@ -14,6 +14,7 @@ import shutil
 import bs4
 from bs4 import BeautifulSoup, Tag
 import pylatex
+from PIL import Image
 
 XML_NS = {
     'content': 'http://purl.org/rss/1.0/modules/content/'
@@ -77,6 +78,19 @@ def filter_articles(tree: ElementTree, issue_num: str) -> List[Article]:
         articles.append(article)
     return articles
 
+#273 pt, at 1 pt / pixel (theoretically)
+IMAGE_WIDTH_DEFAULT = 273
+
+def resize_image(image_path: str):
+    """Resizes the image at image_path to a standard size so they don't import
+    into InDesign at giant size.
+    """
+    image: Image.Image = Image.open(image_path)
+    w = image.width
+    h = image.height
+    scale_factor = IMAGE_WIDTH_DEFAULT / w
+    image.resize((int(w * scale_factor), int(h * scale_factor))).save(image_path)
+
 def download_images(article: Article) -> Article:
     """Looks through the article content for image tags and downloads them locally and saves
     them as an asset. Then, it changes the link text to point to the local copy instead of 
@@ -89,6 +103,8 @@ def download_images(article: Article) -> Article:
         local_path = article.get_image_location(filename)
         try:
             urllib.request.urlretrieve(url, local_path)
+            #resize the image to a reasonable size
+            resize_image(local_path)
             #InDesign recognizes <link href=""> tags for images
             img_tag.name = 'link'
             img_tag.attrs['href'] = 'file://' + local_path
