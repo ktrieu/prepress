@@ -143,7 +143,8 @@ def compile_latex(article: Article) -> Article:
                 continue
             #just use the hash of the latex for a unique filename, this should probably never collide
             filename = article.get_pdf_location(str(hash(latex)))
-            compile_latex_str(latex, filename)
+            if not os.path.isfile(filename):
+                compile_latex_str(latex, filename)
             #if we can't find the parent, assume it's just the document
             parent: Tag
             if text_tag.parent == None or text_tag.parent.name == '[document]':
