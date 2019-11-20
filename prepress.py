@@ -112,12 +112,6 @@ def download_images(article: Article) -> Article:
             print(f'Error downloading image {url}. Reason: {e}')
     return article
 
-def is_latex(latex: str):
-    """Applies some heuristics to determine whether latex is really LaTeX or just
-    some text caught in between two dollar signs.
-    """
-    return '\\' in latex
-
 def compile_latex_str(latex: str, filename: str):
     """Compiles the string latex into a PDF, and saves it to filename.
     """
@@ -134,13 +128,11 @@ def compile_latex(article: Article) -> Article:
     """
     text_tag: bs4.NavigableString
     #matches LaTeX inside one or two dollar signs
-    inline_regex = r'\$?\$([^\$]+)\$\$?'
+    inline_regex = r'\\[([]([^\$]+)\\[)\]]'
     for text_tag in article.content.find_all(text=True):
         p = re.compile(inline_regex)
         for match in p.finditer(text_tag):
             latex = match.group(1)
-            if not is_latex(latex):
-                continue
             #just use the hash of the latex for a unique filename, this should probably never collide
             filename = article.get_pdf_location(str(hash(latex)))
             compile_latex_str(latex, filename)
