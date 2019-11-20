@@ -187,6 +187,7 @@ def replace_dashes(article: Article) -> Article:
                           .replace('---', ' — ')
                           .replace(' -- ', ' — ')
                           .replace('--', ' — ')
+                          .repalce(' — ', ' — ')
         new_tag = re.sub(r'(?<=\d) ?--? ?(?=\d)', '–', text_tag)
         text_tag.replace_with(new_tag)
     return article
