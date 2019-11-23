@@ -92,6 +92,10 @@ def resize_image(image_path: str):
     scale_factor = IMAGE_WIDTH_DEFAULT / w
     image.resize((int(w * scale_factor), int(h * scale_factor))).save(image_path, dpi=(DPI, DPI))
 
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36'
+#this is illegal or whatever, but I am the law.
+urllib.request.URLopener.version = USER_AGENT
+
 def download_images(article: Article) -> Article:
     """Looks through the article content for image tags and downloads them locally and saves
     them as an asset. Then, it changes the link text to point to the local copy instead of 
