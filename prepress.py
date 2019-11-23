@@ -174,14 +174,14 @@ def replace_dashes(article: Article) -> Article:
     """
     text_tag: bs4.NavigableString
     for text_tag in article.content.find_all(text=True):
-        new_tag = re.sub(r'(?<=\d) ?--? ?(?=\d)', '–', text_tag)
-                    .replace(' - ', ' — ')
-                    .replace(' --- ', ' — ')
-                    .replace('---', ' — ')
-                    .replace(' -- ', ' — ')
-                    .replace('--', ' — ')
-                    .replace(' — ', ' — ')
-                    .replace('—', ' — ')
+        new_tag = re.sub(r'(?<=\d) ?--? ?(?=\d)', '–', text_tag) \
+            .replace(' - ', ' — ') \
+            .replace(' --- ', ' — ') \
+            .replace('---', ' — ') \
+            .replace(' -- ', ' — ') \
+            .replace('--', ' — ') \
+            .replace(' — ', ' — ') \
+            .replace('—', ' — ')
         text_tag.replace_with(new_tag)
     return article
 
