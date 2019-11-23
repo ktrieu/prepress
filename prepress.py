@@ -78,8 +78,9 @@ def filter_articles(tree: ElementTree, issue_num: str) -> List[Article]:
         articles.append(article)
     return articles
 
-#273 pt, at 1 pt / pixel (theoretically)
-IMAGE_WIDTH_DEFAULT = 273
+#273 pt, at 300 DPI
+DPI = 300
+IMAGE_WIDTH_DEFAULT = 1138
 
 def resize_image(image_path: str):
     """Resizes the image at image_path to a standard size so they don't import
@@ -89,7 +90,7 @@ def resize_image(image_path: str):
     w = image.width
     h = image.height
     scale_factor = IMAGE_WIDTH_DEFAULT / w
-    image.resize((int(w * scale_factor), int(h * scale_factor))).save(image_path)
+    image.resize((int(w * scale_factor), int(h * scale_factor))).save(image_path, dpi=(DPI, DPI))
 
 def download_images(article: Article) -> Article:
     """Looks through the article content for image tags and downloads them locally and saves
