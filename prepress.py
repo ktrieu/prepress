@@ -222,7 +222,8 @@ POST_PROCESS: List[Callable[[Article], Article]] = [
     compile_latex,
     replace_ellipses,
     replace_dashes,
-    add_smart_quotes
+    add_smart_quotes,
+    remove_extraneous_spaces
 ]
 
 #The directory to store generated assets. Can be changed by command line argument.
