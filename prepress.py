@@ -30,12 +30,12 @@ class Article:
 
     def get_image_location(self, file: str) -> str:
         #generate a slug by trimming the title, replacing non-ascii chars, and replacing spaces
-        file_prefix = self.title[0:10].encode('ascii', errors='ignore').decode().replace(' ', '_')
+        file_prefix = re.sub(r"\W",  "", self.title[0:10].encode('ascii', errors='ignore').decode().replace(' ', '_'))
         filename = file_prefix + '_' + file
         return os.path.join(ASSET_DIR, 'img', filename)
 
     def get_pdf_location(self, file: str) -> str:
-        file_prefix = self.title[0:10].encode('ascii', errors='ignore').decode().replace(' ', '_')
+        file_prefix = re.sub(r"\W",  "", self.title[0:10].encode('ascii', errors='ignore').decode().replace(' ', '_'))
         filename = file_prefix + '_' + file
         return os.path.join(ASSET_DIR, 'pdf', filename)
     
@@ -201,6 +201,15 @@ def add_smart_quotes(article: Article) -> Article:
         text_tag.replace_with(new_tag)
     return article
 
+def remove_extraneous_spaces(article: Article) -> Article:
+    """Removes extraneous spaces after punctuation.
+    """
+    text_tag: bs4.NavigableString
+    for text_tag in article.content.find_all(text=True):
+        new_tag = re.sub(r'(?<=[.,;?!‽]) +', ' ', text_tag)
+        text_tag.replace_with(new_tag)
+    return article
+
 """POST_PROCESS is a list of functions that take Article instances and return Article instances. 
 
 For each article we parse, every function in this list will be applied to it in order, and the 
@@ -213,7 +222,8 @@ POST_PROCESS: List[Callable[[Article], Article]] = [
     compile_latex,
     replace_ellipses,
     replace_dashes,
-    add_smart_quotes
+    add_smart_quotes,
+    remove_extraneous_spaces
 ]
 
 #The directory to store generated assets. Can be changed by command line argument.
@@ -259,5 +269,9 @@ if __name__ == "__main__":
         root.append(article.to_xml_element())
     print(f'Writing to {OUTPUT_FILE}...')
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as output_file:
-        output_file.write(html.unescape(ElementTree.tostring(root, encoding='unicode')))
+        # do some processing first
+        transformed = "\n".join([line for line in html.unescape(ElementTree.tostring(root, encoding='unicode')).split("\n") if line.strip() != ''])
+        transformed = "</article>\n<article>".join([article for article in transformed.split("</article><article>")])
+        transformed = "</title>\n<content>".join([article for article in transformed.split("\n</title><content>")])
+        output_file.write(transformed)
     print('Issue written.')
