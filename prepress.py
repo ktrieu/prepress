@@ -103,9 +103,15 @@ def download_images(article: Article) -> Article:
     """
     img_tag: Tag
     for img_tag in article.content.find_all('img'):
-        url = img_tag.attrs['src']
+	    # try block because sometimes images without sources get added (don't ask me why)
+        try:
+            url = img_tag.attrs['src']
+        except:
+            continue
         filename = os.path.basename(urllib.parse.urlparse(url).path)
         local_path = article.get_image_location(filename)
+        print(local_path)
+        print(url)
         try:
             urllib.request.urlretrieve(url, local_path)
             #resize the image to a reasonable size
@@ -115,16 +121,19 @@ def download_images(article: Article) -> Article:
             img_tag.attrs['href'] = 'file://' + local_path
         except urllib.error.HTTPError as e:
             print(f'Error downloading image {url}. Reason: {e}')
+        except FileNotFoundError as e:
+            print(f'Error downloading image {url}. Reason: {e}')
     return article
 
-def compile_latex_str(latex: str, filename: str):
+def compile_latex_str(latex: str, filename: str, display: bool = False):
     """Compiles the string latex into a PDF, and saves it to filename.
     """
     document = pylatex.Document()
-    document.packages.append(pylatex.Package('amsfonts'))
     document.packages.append(pylatex.Package('amsmath'))
+    document.packages.append(pylatex.Package('amssymb'))
+    document.packages.append(pylatex.Package('amsfonts'))
     document.append(pylatex.NoEscape(r'\thispagestyle{empty}'))
-    document.append(pylatex.NoEscape(' $' + latex + '$ '))
+    document.append(pylatex.NoEscape((r'\[' if display else r'\(') + latex + (r'\]' if display else r'\)')))
     document.generate_pdf(filename, compiler='pdflatex')
 
 def compile_latex(article: Article) -> Article:
@@ -133,15 +142,26 @@ def compile_latex(article: Article) -> Article:
     """
     text_tag: bs4.NavigableString
     #matches LaTeX inside one or two dollar signs
-    inline_regex = r'\\[([]([^\$]+)\\[)\]]'
+    inline_regex = r'\\[([]([\s\S]+?)\\[)\]]'
     for text_tag in article.content.find_all(text=True):
+        # Memo to store validity of latex
+        latex_memo: Dict[str, bool] = dict()
+        # Compiled regex
         p = re.compile(inline_regex)
         for match in p.finditer(text_tag):
-            latex = match.group(1)
+            # if this is invalid latex, skip
+            if latex_memo.get(match[1], True) == False: continue
+
+            latex = match[1]
             #just use the hash of the latex for a unique filename, this should probably never collide
-            filename = article.get_pdf_location(str(hash(latex)))
+            filename = article.get_pdf_location(str(hash(match[0])))
             if not os.path.isfile(filename):
-                compile_latex_str(latex, filename)
+                try:
+                    compile_latex_str(latex, filename, display=(match[0][1] == '['))
+                    latex_memo[latex] = True
+                except:
+                    latex_memo[latex] = False
+                    continue
             #if we can't find the parent, assume it's just the document
             parent: Tag
             if text_tag.parent == None or text_tag.parent.name == '[document]':
@@ -150,7 +170,12 @@ def compile_latex(article: Article) -> Article:
                 parent = text_tag.parent
             tag_idx = parent.contents.index(text_tag)
             #replace the matched latex with a link tag
-            begin, end = text_tag.split(match.group(0))
+            begin, *rest = text_tag.split(match[0])[:2]
+            end: str
+            if len(rest):
+                end = rest[0]
+            else:
+                end = ""
             #convert these strings to tags
             begin = bs4.NavigableString(begin)
             end = bs4.NavigableString(end)
