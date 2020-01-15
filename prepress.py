@@ -1,4 +1,5 @@
 import argparse
+import os
 import os.path
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement
@@ -15,6 +16,17 @@ import bs4
 from bs4 import BeautifulSoup, Tag
 import pylatex
 from PIL import Image
+
+#The directory to store generated assets. Can be changed by command line argument.
+ASSET_DIR = 'assets'
+#The location of the output file. Can be changed by command line argument'
+OUTPUT_FILE = 'issue.xml'
+#The current working directory
+CURRENT_DIR: str
+#273 pt, at 300 DPI
+DPI = 300
+IMAGE_WIDTH_DEFAULT = 1138
+
 
 XML_NS = {
     'content': 'http://purl.org/rss/1.0/modules/content/'
@@ -77,10 +89,6 @@ def filter_articles(tree: ElementTree, issue_num: str) -> List[Article]:
         article.content = BeautifulSoup(article_text_content, 'html.parser')
         articles.append(article)
     return articles
-
-#273 pt, at 300 DPI
-DPI = 300
-IMAGE_WIDTH_DEFAULT = 1138
 
 def resize_image(image_path: str):
     """Resizes the image at image_path to a standard size so they don't import
@@ -252,11 +260,6 @@ POST_PROCESS: List[Callable[[Article], Article]] = [
     remove_extraneous_spaces
 ]
 
-#The directory to store generated assets. Can be changed by command line argument.
-ASSET_DIR = 'assets'
-#The location of the output file. Can be changed by command line argument'
-OUTPUT_FILE = 'issue.xml'
-
 def create_asset_dirs():
     if not os.path.isdir(os.path.join(ASSET_DIR, 'img')):
         os.makedirs(os.path.join(ASSET_DIR, 'img'))
@@ -274,6 +277,7 @@ if __name__ == "__main__":
         help='a folder to store asset files to',
         default='assets')
     args = parser.parse_args()
+    CURRENT_DIR = os.getcwd()
     ASSET_DIR = args.assets
     shutil.rmtree(ASSET_DIR, ignore_errors=True)
     create_asset_dirs()
@@ -294,6 +298,7 @@ if __name__ == "__main__":
     for article in articles:
         root.append(article.to_xml_element())
     print(f'Writing to {OUTPUT_FILE}...')
+    os.chdir(CURRENT_DIR)
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as output_file:
         # do some processing first
         transformed = "\n".join([line for line in html.unescape(ElementTree.tostring(root, encoding='unicode')).split("\n") if line.strip() != ''])
