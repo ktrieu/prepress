@@ -136,13 +136,14 @@ def download_images(article: Article) -> Article:
 def compile_latex_str(latex: str, filename: str, display: bool = False):
     """Compiles the string latex into a PDF, and saves it to filename.
     """
+    print(f"{filename} {latex}", flush=True) # DEBUG
     document = pylatex.Document()
     document.packages.append(pylatex.Package('amsmath'))
     document.packages.append(pylatex.Package('amssymb'))
     document.packages.append(pylatex.Package('amsfonts'))
     document.append(pylatex.NoEscape(r'\thispagestyle{empty}'))
     document.append(pylatex.NoEscape((r'\[' if display else r'\(') + latex + (r'\]' if display else r'\)')))
-    document.generate_pdf(filename, compiler='pdflatex')
+    document.generate_pdf(filename, compiler='pdflatex', clean_tex=False)
 
 def compile_latex(article: Article) -> Article:
     """Looks through the article content for embedded LaTeX and compiles it into
@@ -152,24 +153,29 @@ def compile_latex(article: Article) -> Article:
     #matches LaTeX inside one or two dollar signs
     inline_regex = r'\\[([]([\s\S]+?)\\[)\]]'
     for text_tag in article.content.find_all(text=True):
-        # Memo to store validity of latex
-        latex_memo: Dict[str, bool] = dict()
+        # Memo to store validity and compile status of latex
+        # note: compile_latex_str is asynchronous, could possibly result in race condition
+        latex_valid_memo: Dict[str, bool] = dict()
+        latex_compiled_memo: Dict[str, bool] = dict()
         # Compiled regex
         p = re.compile(inline_regex)
         for match in p.finditer(text_tag):
             # if this is invalid latex, skip
-            if latex_memo.get(match[1], True) == False: continue
+            if latex_valid_memo.get(match[1], True) == False: continue
 
             latex = match[1]
             #just use the hash of the latex for a unique filename, this should probably never collide
             filename = article.get_pdf_location(str(hash(match[0])))
-            if not os.path.isfile(filename):
+            if match[0] not in latex_compiled_memo:
+                print(latex_compiled_memo, flush=True) # DEBUG
                 try:
                     compile_latex_str(latex, filename, display=(match[0][1] == '['))
-                    latex_memo[latex] = True
+                    latex_valid_memo[latex] = True
+                    latex_compiled_memo[match[0]] = True
                 except:
-                    latex_memo[latex] = False
-                    continue
+                    latex_valid_memo[latex] = False
+                    raise
+                    #continue
             #if we can't find the parent, assume it's just the document
             parent: Tag
             if text_tag.parent == None or text_tag.parent.name == '[document]':
@@ -285,19 +291,19 @@ if __name__ == "__main__":
     if not os.path.isfile(args.xml_dump):
         print(f'{args.xml_dump} does not exist.')
         exit(1)
-    print('Parsing XML...')
+    print('Parsing XML...', flush=True)
     tree = ElementTree.parse(args.xml_dump)
-    print('Filtering articles...')
+    print('Filtering articles...', flush=True)
     articles = filter_articles(tree, args.issue)
-    print('Post-processing articles...')
+    print('Post-processing articles...', flush=True)
     for process in POST_PROCESS:
-        print(f'Post-process pass: {process.__name__}')
+        print(f'Post-process pass: {process.__name__}', flush=True)
         articles = map(process, articles)
-    print(f'Post-processing...')
+    print(f'Post-processing...', flush=True)
     root = Element('issue')
     for article in articles:
         root.append(article.to_xml_element())
-    print(f'Writing to {OUTPUT_FILE}...')
+    print(f'Writing to {OUTPUT_FILE}...', flush=True)
     os.chdir(CURRENT_DIR)
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as output_file:
         # do some processing first
