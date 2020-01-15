@@ -43,7 +43,7 @@ class Article:
         article_tag = Element('article')
         title_tag = SubElement(article_tag, 'title')
         #automatically add a newline to the title so content will start on a newline
-        title_tag.text = self.title + '\n'
+        title_tag.text = self.title.replace('&', '&amp;') + '\n'
         content_tag = SubElement(article_tag, 'content')
         content_tag.text = str(self.content)
         return article_tag
