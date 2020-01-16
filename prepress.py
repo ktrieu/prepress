@@ -113,15 +113,14 @@ def download_images(article: Article) -> Article:
     """
     img_tag: Tag
     for img_tag in article.content.find_all('img'):
-	    # try block because sometimes images without sources get added (don't ask me why)
+        # try block because sometimes images without sources get added (don't ask me why)
         try:
             url = img_tag.attrs['src']
         except:
             continue
         filename = os.path.basename(urllib.parse.urlparse(url).path)
         local_path = article.get_image_location(filename)
-        print(local_path)
-        print(url)
+        print(f"Downloading {local_path}\t{url}", flush=True)
         try:
             urllib.request.urlretrieve(url, local_path)
             #resize the image to a reasonable size
@@ -131,14 +130,15 @@ def download_images(article: Article) -> Article:
             img_tag.attrs['href'] = 'file://' + local_path
         except urllib.error.HTTPError as e:
             print(f'Error downloading image {url}. Reason: {e}')
+            input("[Enter] to continue...")
         except FileNotFoundError as e:
             print(f'Error downloading image {url}. Reason: {e}')
+            input("[Enter] to continue...")
     return article
 
 def compile_latex_str(latex: str, filename: str, display: bool = False):
     """Compiles the string latex into a PDF, and saves it to filename.
     """
-    print(f"{filename}\t{latex}", flush=True)
     document = pylatex.Document()
     document.packages.append(pylatex.Package('amsmath'))
     document.packages.append(pylatex.Package('amssymb'))
@@ -146,6 +146,7 @@ def compile_latex_str(latex: str, filename: str, display: bool = False):
     document.append(pylatex.NoEscape(r'\thispagestyle{empty}'))
     document.append(pylatex.NoEscape((r'\[' if display else r'\(') + latex + (r'\]' if display else r'\)')))
     document.generate_pdf(filename, compiler='pdflatex')
+    print(f"{filename}\t{latex}", flush=True)
 
 def compile_latex(article: Article) -> Article:
     """Looks through the article content for embedded LaTeX and compiles it into
@@ -166,7 +167,7 @@ def compile_latex(article: Article) -> Article:
 
             latex = match[1]
             # just use the hash of the latex for a unique filename, this should probably never collide
-            # NOTE: sha1 is used for speed; we do not use the built-in `hash` function as it is non-deterministic.
+            # NOTE: sha1 is used for speed; we do not use the built-in `hash` function as it is non-deterministic across runs.
             #       We do NOT need to care about security risks, since we are solely concerned with uniqueness.
             filename = article.get_pdf_location(hashlib.sha1(match[0].encode('utf-8')).hexdigest())
             if match[0] not in latex_compiled_memo:
@@ -176,6 +177,7 @@ def compile_latex(article: Article) -> Article:
                     latex_compiled_memo[match[0]] = True
                 except subprocess.CalledProcessError:
                     latex_valid_memo[latex] = False
+                    input("[Enter] to continue...")
                     continue
             #if we can't find the parent, assume it's just the document
             parent: Tag
