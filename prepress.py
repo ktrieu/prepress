@@ -11,6 +11,8 @@ import urllib.parse
 import urllib.error
 import html
 import shutil
+import hashlib
+import subprocess
 
 import bs4
 from bs4 import BeautifulSoup, Tag
@@ -136,14 +138,14 @@ def download_images(article: Article) -> Article:
 def compile_latex_str(latex: str, filename: str, display: bool = False):
     """Compiles the string latex into a PDF, and saves it to filename.
     """
-    print(f"{filename} {latex}", flush=True) # DEBUG
+    print(f"{filename}\t{latex}", flush=True)
     document = pylatex.Document()
     document.packages.append(pylatex.Package('amsmath'))
     document.packages.append(pylatex.Package('amssymb'))
     document.packages.append(pylatex.Package('amsfonts'))
     document.append(pylatex.NoEscape(r'\thispagestyle{empty}'))
     document.append(pylatex.NoEscape((r'\[' if display else r'\(') + latex + (r'\]' if display else r'\)')))
-    document.generate_pdf(filename, compiler='pdflatex', clean_tex=False)
+    document.generate_pdf(filename, compiler='pdflatex')
 
 def compile_latex(article: Article) -> Article:
     """Looks through the article content for embedded LaTeX and compiles it into
@@ -152,11 +154,10 @@ def compile_latex(article: Article) -> Article:
     text_tag: bs4.NavigableString
     #matches LaTeX inside one or two dollar signs
     inline_regex = r'\\[([]([\s\S]+?)\\[)\]]'
+    # Memo to store validity and compile status of latex
+    latex_valid_memo: Dict[str, bool] = dict()
+    latex_compiled_memo: Dict[str, bool] = dict()
     for text_tag in article.content.find_all(text=True):
-        # Memo to store validity and compile status of latex
-        # note: compile_latex_str is asynchronous, could possibly result in race condition
-        latex_valid_memo: Dict[str, bool] = dict()
-        latex_compiled_memo: Dict[str, bool] = dict()
         # Compiled regex
         p = re.compile(inline_regex)
         for match in p.finditer(text_tag):
@@ -164,18 +165,18 @@ def compile_latex(article: Article) -> Article:
             if latex_valid_memo.get(match[1], True) == False: continue
 
             latex = match[1]
-            #just use the hash of the latex for a unique filename, this should probably never collide
-            filename = article.get_pdf_location(str(hash(match[0])))
+            # just use the hash of the latex for a unique filename, this should probably never collide
+            # NOTE: sha1 is used for speed; we do not use the built-in `hash` function as it is non-deterministic.
+            #       We do NOT need to care about security risks, since we are solely concerned with uniqueness.
+            filename = article.get_pdf_location(hashlib.sha1(match[0].encode('utf-8')).hexdigest())
             if match[0] not in latex_compiled_memo:
-                print(latex_compiled_memo, flush=True) # DEBUG
                 try:
                     compile_latex_str(latex, filename, display=(match[0][1] == '['))
                     latex_valid_memo[latex] = True
                     latex_compiled_memo[match[0]] = True
-                except:
+                except subprocess.CalledProcessError:
                     latex_valid_memo[latex] = False
-                    raise
-                    #continue
+                    continue
             #if we can't find the parent, assume it's just the document
             parent: Tag
             if text_tag.parent == None or text_tag.parent.name == '[document]':
