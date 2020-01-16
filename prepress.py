@@ -28,6 +28,7 @@ CURRENT_DIR: str
 #273 pt, at 300 DPI
 DPI = 300
 IMAGE_WIDTH_DEFAULT = 1138
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36'
 
 
 XML_NS = {
@@ -102,7 +103,6 @@ def resize_image(image_path: str):
     scale_factor = IMAGE_WIDTH_DEFAULT / w
     image.resize((int(w * scale_factor), int(h * scale_factor))).save(image_path, dpi=(DPI, DPI))
 
-USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36'
 #this is illegal or whatever, but I am the law.
 urllib.request.URLopener.version = USER_AGENT
 
@@ -284,7 +284,10 @@ if __name__ == "__main__":
         default='assets')
     args = parser.parse_args()
     CURRENT_DIR = os.getcwd()
-    ASSET_DIR = args.assets
+    if os.path.isabs(args.assets):
+        ASSET_DIR = args.assets
+    else:
+        ASSET_DIR = os.path.join(CURRENT_DIR, args.assets)
     shutil.rmtree(ASSET_DIR, ignore_errors=True)
     create_asset_dirs()
     OUTPUT_FILE = args.xml_output
