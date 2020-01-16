@@ -184,12 +184,11 @@ def compile_latex(article: Article) -> Article:
                 parent = text_tag.parent
             tag_idx = parent.contents.index(text_tag)
             #replace the matched latex with a link tag
-            begin, *rest = text_tag.split(match[0])[:2]
+            begin, *rest = text_tag.split(match[0], maxsplit=1)
             end: str
             if len(rest):
                 end = rest[0]
             else:
-                # problem: can remove text sometimes
                 end = ""
             #convert these strings to tags
             begin = bs4.NavigableString(begin)
