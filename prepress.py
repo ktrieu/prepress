@@ -1,4 +1,5 @@
 import argparse
+import os
 import os.path
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement
@@ -10,11 +11,25 @@ import urllib.parse
 import urllib.error
 import html
 import shutil
+import hashlib
+import subprocess
 
 import bs4
 from bs4 import BeautifulSoup, Tag
 import pylatex
 from PIL import Image
+
+#The directory to store generated assets. Can be changed by command line argument.
+ASSET_DIR = 'assets'
+#The location of the output file. Can be changed by command line argument'
+OUTPUT_FILE = 'issue.xml'
+#The current working directory
+CURRENT_DIR: str
+#273 pt, at 300 DPI
+DPI = 300
+IMAGE_WIDTH_DEFAULT = 1138
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36'
+
 
 XML_NS = {
     'content': 'http://purl.org/rss/1.0/modules/content/'
@@ -43,7 +58,7 @@ class Article:
         article_tag = Element('article')
         title_tag = SubElement(article_tag, 'title')
         #automatically add a newline to the title so content will start on a newline
-        title_tag.text = self.title + '\n'
+        title_tag.text = self.title.replace('&', '&amp;') + '\n'
         content_tag = SubElement(article_tag, 'content')
         content_tag.text = str(self.content)
         return article_tag
@@ -78,10 +93,6 @@ def filter_articles(tree: ElementTree, issue_num: str) -> List[Article]:
         articles.append(article)
     return articles
 
-#273 pt, at 300 DPI
-DPI = 300
-IMAGE_WIDTH_DEFAULT = 1138
-
 def resize_image(image_path: str):
     """Resizes the image at image_path to a standard size so they don't import
     into InDesign at giant size.
@@ -92,7 +103,6 @@ def resize_image(image_path: str):
     scale_factor = IMAGE_WIDTH_DEFAULT / w
     image.resize((int(w * scale_factor), int(h * scale_factor))).save(image_path, dpi=(DPI, DPI))
 
-USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36'
 #this is illegal or whatever, but I am the law.
 urllib.request.URLopener.version = USER_AGENT
 
@@ -103,9 +113,14 @@ def download_images(article: Article) -> Article:
     """
     img_tag: Tag
     for img_tag in article.content.find_all('img'):
-        url = img_tag.attrs['src']
+        # try block because sometimes images without sources get added (don't ask me why)
+        try:
+            url = img_tag.attrs['src']
+        except:
+            continue
         filename = os.path.basename(urllib.parse.urlparse(url).path)
         local_path = article.get_image_location(filename)
+        print(f"Downloading {local_path}\t{url}", flush=True)
         try:
             urllib.request.urlretrieve(url, local_path)
             #resize the image to a reasonable size
@@ -115,17 +130,23 @@ def download_images(article: Article) -> Article:
             img_tag.attrs['href'] = 'file://' + local_path
         except urllib.error.HTTPError as e:
             print(f'Error downloading image {url}. Reason: {e}')
+            input("[Enter] to continue...")
+        except FileNotFoundError as e:
+            print(f'Error downloading image {url}. Reason: {e}')
+            input("[Enter] to continue...")
     return article
 
-def compile_latex_str(latex: str, filename: str):
+def compile_latex_str(latex: str, filename: str, display: bool = False):
     """Compiles the string latex into a PDF, and saves it to filename.
     """
     document = pylatex.Document()
-    document.packages.append(pylatex.Package('amsfonts'))
     document.packages.append(pylatex.Package('amsmath'))
+    document.packages.append(pylatex.Package('amssymb'))
+    document.packages.append(pylatex.Package('amsfonts'))
     document.append(pylatex.NoEscape(r'\thispagestyle{empty}'))
-    document.append(pylatex.NoEscape(' $' + latex + '$ '))
+    document.append(pylatex.NoEscape((r'\[' if display else r'\(') + latex + (r'\]' if display else r'\)')))
     document.generate_pdf(filename, compiler='pdflatex')
+    print(f"{filename}\t{latex}", flush=True)
 
 def compile_latex(article: Article) -> Article:
     """Looks through the article content for embedded LaTeX and compiles it into
@@ -133,15 +154,31 @@ def compile_latex(article: Article) -> Article:
     """
     text_tag: bs4.NavigableString
     #matches LaTeX inside one or two dollar signs
-    inline_regex = r'\\[([]([^\$]+)\\[)\]]'
+    inline_regex = r'\\[([]([\s\S]+?)\\[)\]]'
+    # Memo to store validity and compile status of latex
+    latex_valid_memo: Dict[str, bool] = dict()
+    latex_compiled_memo: Dict[str, bool] = dict()
     for text_tag in article.content.find_all(text=True):
+        # Compiled regex
         p = re.compile(inline_regex)
         for match in p.finditer(text_tag):
-            latex = match.group(1)
-            #just use the hash of the latex for a unique filename, this should probably never collide
-            filename = article.get_pdf_location(str(hash(latex)))
-            if not os.path.isfile(filename):
-                compile_latex_str(latex, filename)
+            # if this is invalid latex, skip
+            if latex_valid_memo.get(match[1], True) == False: continue
+
+            latex = match[1]
+            # just use the hash of the latex for a unique filename, this should probably never collide
+            # NOTE: sha1 is used for speed; we do not use the built-in `hash` function as it is non-deterministic across runs.
+            #       We do NOT need to care about security risks, since we are solely concerned with uniqueness.
+            filename = article.get_pdf_location(hashlib.sha1(match[0].encode('utf-8')).hexdigest())
+            if match[0] not in latex_compiled_memo:
+                try:
+                    compile_latex_str(latex, filename, display=(match[0][1] == '['))
+                    latex_valid_memo[latex] = True
+                    latex_compiled_memo[match[0]] = True
+                except subprocess.CalledProcessError:
+                    latex_valid_memo[latex] = False
+                    input("[Enter] to continue...")
+                    continue
             #if we can't find the parent, assume it's just the document
             parent: Tag
             if text_tag.parent == None or text_tag.parent.name == '[document]':
@@ -150,7 +187,12 @@ def compile_latex(article: Article) -> Article:
                 parent = text_tag.parent
             tag_idx = parent.contents.index(text_tag)
             #replace the matched latex with a link tag
-            begin, end = text_tag.split(match.group(0))
+            begin, *rest = text_tag.split(match[0], maxsplit=1)
+            end: str
+            if len(rest):
+                end = rest[0]
+            else:
+                end = ""
             #convert these strings to tags
             begin = bs4.NavigableString(begin)
             end = bs4.NavigableString(end)
@@ -180,12 +222,12 @@ def replace_dashes(article: Article) -> Article:
     text_tag: bs4.NavigableString
     for text_tag in article.content.find_all(text=True):
         new_tag = re.sub(r'(?<=\d) ?--? ?(?=\d)', '–', text_tag) \
-            .replace(' - ', ' — ') \
-            .replace(' --- ', ' — ') \
-            .replace('---', ' — ') \
-            .replace(' -- ', ' — ') \
-            .replace('--', ' — ') \
-            .replace(' — ', ' — ') \
+            .replace(' - ', '—') \
+            .replace(' --- ', '—') \
+            .replace('---', '—') \
+            .replace(' -- ', '—') \
+            .replace('--', '—') \
+            .replace(' — ', '—') \
             .replace('—', ' — ')
         text_tag.replace_with(new_tag)
     return article
@@ -226,11 +268,6 @@ POST_PROCESS: List[Callable[[Article], Article]] = [
     remove_extraneous_spaces
 ]
 
-#The directory to store generated assets. Can be changed by command line argument.
-ASSET_DIR = 'assets'
-#The location of the output file. Can be changed by command line argument'
-OUTPUT_FILE = 'issue.xml'
-
 def create_asset_dirs():
     if not os.path.isdir(os.path.join(ASSET_DIR, 'img')):
         os.makedirs(os.path.join(ASSET_DIR, 'img'))
@@ -248,26 +285,31 @@ if __name__ == "__main__":
         help='a folder to store asset files to',
         default='assets')
     args = parser.parse_args()
-    ASSET_DIR = args.assets
+    CURRENT_DIR = os.getcwd()
+    if os.path.isabs(args.assets):
+        ASSET_DIR = args.assets
+    else:
+        ASSET_DIR = os.path.join(CURRENT_DIR, args.assets)
     shutil.rmtree(ASSET_DIR, ignore_errors=True)
     create_asset_dirs()
     OUTPUT_FILE = args.xml_output
     if not os.path.isfile(args.xml_dump):
         print(f'{args.xml_dump} does not exist.')
         exit(1)
-    print('Parsing XML...')
+    print('Parsing XML...', flush=True)
     tree = ElementTree.parse(args.xml_dump)
-    print('Filtering articles...')
+    print('Filtering articles...', flush=True)
     articles = filter_articles(tree, args.issue)
-    print('Post-processing articles...')
+    print('Post-processing articles...', flush=True)
     for process in POST_PROCESS:
-        print(f'Post-process pass: {process.__name__}')
+        print(f'Post-process pass: {process.__name__}', flush=True)
         articles = map(process, articles)
-    print(f'Post-processing...')
+    print(f'Post-processing...', flush=True)
     root = Element('issue')
     for article in articles:
         root.append(article.to_xml_element())
-    print(f'Writing to {OUTPUT_FILE}...')
+    print(f'Writing to {OUTPUT_FILE}...', flush=True)
+    os.chdir(CURRENT_DIR)
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as output_file:
         # do some processing first
         transformed = "\n".join([line for line in html.unescape(ElementTree.tostring(root, encoding='unicode')).split("\n") if line.strip() != ''])
