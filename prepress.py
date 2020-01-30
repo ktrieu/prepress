@@ -58,7 +58,7 @@ class Article:
         article_tag = Element('article')
         title_tag = SubElement(article_tag, 'title')
         #automatically add a newline to the title so content will start on a newline
-        title_tag.text = self.title.replace('&', '&amp;') + '\n'
+        title_tag.text = (self.title.replace('&', '&amp;') + '\n') if self.title else ""
         content_tag = SubElement(article_tag, 'content')
         content_tag.text = str(self.content)
         return article_tag
@@ -136,6 +136,11 @@ def download_images(article: Article) -> Article:
             input("[Enter] to continue...")
     return article
 
+class Preview(pylatex.base_classes.Environment):
+    packages = [pylatex.Package('preview', ['active', 'tightpage', 'pdftex'])]
+    escape = False
+    content_separator = "\n"
+
 def compile_latex_str(latex: str, filename: str, display: bool = False):
     """Compiles the string latex into a PDF, and saves it to filename.
     """
@@ -143,8 +148,9 @@ def compile_latex_str(latex: str, filename: str, display: bool = False):
     document.packages.append(pylatex.Package('amsmath'))
     document.packages.append(pylatex.Package('amssymb'))
     document.packages.append(pylatex.Package('amsfonts'))
-    document.append(pylatex.NoEscape(r'\thispagestyle{empty}'))
-    document.append(pylatex.NoEscape((r'\[' if display else r'\(') + latex + (r'\]' if display else r'\)')))
+    document.preamble.append(pylatex.Command('thispagestyle', 'empty'))
+    with document.create(Preview()):
+        document.append(pylatex.NoEscape((r'\[' if display else r'\(') + latex + (r'\]' if display else r'\)')))
     document.generate_pdf(filename, compiler='pdflatex')
     print(f"{filename}\t{latex}", flush=True)
 
