@@ -3,7 +3,7 @@ import os
 import os.path
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement
-from typing import List, Callable
+from typing import List, Callable, Union
 import re
 import itertools
 import urllib.request
@@ -34,6 +34,9 @@ USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 XML_NS = {
     'content': 'http://purl.org/rss/1.0/modules/content/'
 }
+
+# Tags within which we should not be replacing content
+VERBATIM_TAGS = ('pre', 'code')
 
 class Article:
 
@@ -92,6 +95,35 @@ def filter_articles(tree: ElementTree, issue_num: str) -> List[Article]:
         article.content = BeautifulSoup(article_text_content, 'html.parser')
         articles.append(article)
     return articles
+
+def keep_verbatim(tag: Union[Tag, bs4.NavigableString]) -> bool:
+    return tag.name in VERBATIM_TAGS or any(filter(lambda t: t.name in VERBATIM_TAGS, tag.parents))
+
+def replace_text_with_tag(sub_text: str,
+                          repl_tag: Tag,
+                          text_tag: bs4.NavigableString,
+                          article: Article) -> bs4.NavigableString:
+    #if we can't find the parent, assume it's just the document
+    parent: Tag
+    if text_tag.parent == None or text_tag.parent.name == '[document]':
+        parent = article.content
+    else:
+        parent = text_tag.parent
+    tag_idx = parent.contents.index(text_tag)
+    #replace the matched text with a tag
+    begin, *rest = text_tag.split(sub_text, maxsplit=1)
+    end: str
+    if len(rest):
+        end = rest[0]
+    else:
+        end = ""
+    #convert these strings to tags
+    begin = bs4.NavigableString(begin)
+    end = bs4.NavigableString(end)
+    text_tag.replace_with(begin)
+    parent.insert(tag_idx + 1, repl_tag)
+    parent.insert(tag_idx + 2, end)
+    return end
 
 def resize_image(image_path: str):
     """Resizes the image at image_path to a standard size so they don't import
@@ -161,12 +193,12 @@ def compile_latex(article: Article) -> Article:
     text_tag: bs4.NavigableString
     #matches LaTeX inside one or two dollar signs
     inline_regex = r'\\[([]([\s\S]+?)\\[)\]]'
+    # Compiled regex
+    p = re.compile(inline_regex)
     # Memo to store validity and compile status of latex
     latex_valid_memo: Dict[str, bool] = dict()
     latex_compiled_memo: Dict[str, bool] = dict()
     for text_tag in article.content.find_all(text=True):
-        # Compiled regex
-        p = re.compile(inline_regex)
         for match in p.finditer(text_tag):
             # if this is invalid latex, skip
             if latex_valid_memo.get(match[1], True) == False: continue
@@ -185,30 +217,9 @@ def compile_latex(article: Article) -> Article:
                     latex_valid_memo[latex] = False
                     input("[Enter] to continue...")
                     continue
-            #if we can't find the parent, assume it's just the document
-            parent: Tag
-            if text_tag.parent == None or text_tag.parent.name == '[document]':
-                parent = article.content
-            else:
-                parent = text_tag.parent
-            tag_idx = parent.contents.index(text_tag)
-            #replace the matched latex with a link tag
-            begin, *rest = text_tag.split(match[0], maxsplit=1)
-            end: str
-            if len(rest):
-                end = rest[0]
-            else:
-                end = ""
-            #convert these strings to tags
-            begin = bs4.NavigableString(begin)
-            end = bs4.NavigableString(end)
-            text_tag.replace_with(begin)
-            #the latex compiler will automatically add a .pdf so we have to add one too
             link_tag = Tag(name='link', attrs={'href': 'file://' + filename + '.pdf'})
-            parent.insert(tag_idx + 1, link_tag)
-            parent.insert(tag_idx + 2, end)
             #set the current tag to the new end tag
-            text_tag = end
+            text_tag = replace_text_with_tag(match[0], link_tag, text_tag, article=article)
     return article
 
 def replace_ellipses(article: Article) -> Article:
@@ -258,7 +269,25 @@ def remove_extraneous_spaces(article: Article) -> Article:
         text_tag.replace_with(new_tag)
     return article
 
-"""POST_PROCESS is a list of functions that take Article instances and return Article instances. 
+def add_footnotes(article: Article) -> Article:
+    """Replaces footnotes in <sup></sup> tags, [\d] format, or *, **, etc."""
+    text_tag: bs4.NavigableString
+    inline_regex = re.compile(r'\[(\d*)\]')
+    footnote_counter = 1
+    for text_tag in article.content.find_all(text=True):
+        if keep_verbatim(text_tag): continue
+
+        for match in inline_regex.finditer(text_tag):
+            # Check match for provided numbering -- if it exists, then use it
+            if len(match[1]):
+                footnote_counter = int(match[1])
+            sup_tag = Tag(name='sup')
+            sup_tag.string = str(footnote_counter)
+            text_tag = replace_text_with_tag(match[0], sup_tag, text_tag, article=article)
+            footnote_counter += 1
+    return article
+
+"""POST_PROCESS is a list of functions that take Article instances and return Article instances.
 
 For each article we parse, every function in this list will be applied to it in order, and the 
 result saved back to the article list.
@@ -271,7 +300,8 @@ POST_PROCESS: List[Callable[[Article], Article]] = [
     replace_ellipses,
     replace_dashes,
     add_smart_quotes,
-    remove_extraneous_spaces
+    remove_extraneous_spaces,
+    add_footnotes
 ]
 
 def create_asset_dirs():
