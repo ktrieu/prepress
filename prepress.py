@@ -199,6 +199,8 @@ def compile_latex(article: Article) -> Article:
     latex_valid_memo: Dict[str, bool] = dict()
     latex_compiled_memo: Dict[str, bool] = dict()
     for text_tag in article.content.find_all(text=True):
+        if keep_verbatim(text_tag): continue
+
         for match in p.finditer(text_tag):
             # if this is invalid latex, skip
             if latex_valid_memo.get(match[1], True) == False: continue
@@ -227,6 +229,8 @@ def replace_ellipses(article: Article) -> Article:
     """
     text_tag: bs4.NavigableString
     for text_tag in article.content.find_all(text=True):
+        if keep_verbatim(text_tag): continue
+
         new_tag = text_tag.replace('...', '…')
         text_tag.replace_with(new_tag)
     return article
@@ -238,6 +242,8 @@ def replace_dashes(article: Article) -> Article:
     """
     text_tag: bs4.NavigableString
     for text_tag in article.content.find_all(text=True):
+        if keep_verbatim(text_tag): continue
+
         new_tag = re.sub(r'(?<=\d) ?--? ?(?=\d)', '–', text_tag) \
             .replace(' - ', '—') \
             .replace(' --- ', '—') \
@@ -255,6 +261,8 @@ def add_smart_quotes(article: Article) -> Article:
     """
     text_tag: bs4.NavigableString
     for text_tag in article.content.find_all(text=True):
+        if keep_verbatim(text_tag): continue
+
         #\1 will sub in the first matched group
         new_tag = re.sub(r'"([^"]*)"', r'“\1”', text_tag)
         text_tag.replace_with(new_tag)
@@ -265,6 +273,8 @@ def remove_extraneous_spaces(article: Article) -> Article:
     """
     text_tag: bs4.NavigableString
     for text_tag in article.content.find_all(text=True):
+        if keep_verbatim(text_tag): continue
+
         new_tag = re.sub(r'(?<=[.,;?!‽]) +', ' ', text_tag)
         text_tag.replace_with(new_tag)
     return article
