@@ -283,18 +283,21 @@ def add_footnotes(article: Article) -> Article:
     """Replaces footnotes in <sup></sup> tags, [\d] format, or *, **, etc."""
     text_tag: bs4.NavigableString
     inline_regex = re.compile(r'\[(\d*)\]')
-    footnote_counter = 1
+    footnote_counter = 1  # is the expected number of the next footnote
     for text_tag in article.content.find_all(text=True):
         if keep_verbatim(text_tag): continue
 
         for match in inline_regex.finditer(text_tag):
             # Check match for provided numbering -- if it exists, then use it
+            footnote_num = footnote_counter
             if len(match[1]):
-                footnote_counter = int(match[1])
+                footnote_num = int(match[1])
             sup_tag = Tag(name='sup')
-            sup_tag.string = str(footnote_counter)
+            sup_tag.string = str(footnote_num)
             text_tag = replace_text_with_tag(match[0], sup_tag, text_tag, article=article)
-            footnote_counter += 1
+            # Only auto-increment if blank or explicitly incremented
+            if len(match[1]) == 0 or footnote_num == footnote_counter:
+                footnote_counter += 1
     return article
 
 """POST_PROCESS is a list of functions that take Article instances and return Article instances.
