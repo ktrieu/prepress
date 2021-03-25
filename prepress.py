@@ -255,17 +255,57 @@ def replace_dashes(article: Article) -> Article:
         text_tag.replace_with(new_tag)
     return article
 
+# Quotes only really start with varieties of left brackets
+LEFT_PUNCTUATION = { '(', '{', '<' }
+# But they can be ended with any of the standard sentence enders
+RIGHT_PUNCTUATION = { ')', '}', '>', '.', ',', '?' }
+LEFT_DOUBLE_QUOTE = '“'
+RIGHT_DOUBLE_QUOTE = '”'
+STRAIGHT_DOUBLE_QUOTE = '"'
+
+def replace_double_quote(before: str, after: str):
+    # double quotes can occur at the beginning/end of strings
+    if before is None:
+        return LEFT_DOUBLE_QUOTE
+    if after is None:
+        return RIGHT_DOUBLE_QUOTE
+
+    # double quotes can occur before/after spaces
+    if before.isspace():
+        return LEFT_DOUBLE_QUOTE
+    # ditto for the right
+    if after.isspace():
+        return RIGHT_DOUBLE_QUOTE
+
+    # double quotes can occur before/after punctuation
+    if before in LEFT_PUNCTUATION:
+        return LEFT_DOUBLE_QUOTE
+    if after in RIGHT_PUNCTUATION:
+        return RIGHT_DOUBLE_QUOTE
+
+
+    return STRAIGHT_DOUBLE_QUOTE
+
+def replace_smart_quotes(s: str):
+    # create an array so we can modify this string
+    char_array = list(s)
+    
+    for idx, char in enumerate(char_array):
+        if char == '"':
+            before = None if idx == 0 else char_array[idx - 1]
+            after = None if idx == len(char_array) - 1 else char_array[idx + 1]
+            char_array[idx] = replace_double_quote(before, after)
+
+    return ''.join(char_array)
+    
 def add_smart_quotes(article: Article) -> Article:
-    """Replaces regular quotes with smart quotes. This function assumes quotes are not nested
-    and will simply convert pairs of quotes into left and right quotes.
-    """
+    """Replaces regular quotes with smart quotes. Works on double and single quotes."""
     text_tag: bs4.NavigableString
     for text_tag in article.content.find_all(text=True):
         if keep_verbatim(text_tag): continue
 
-        #\1 will sub in the first matched group
-        new_tag = re.sub(r'"([^"]*)"', r'“\1”', text_tag)
-        text_tag.replace_with(new_tag)
+        text_tag.replace_with(replace_smart_quotes(text_tag))
+
     return article
 
 def remove_extraneous_spaces(article: Article) -> Article:
