@@ -74,3 +74,11 @@ class TestSmartQuotes(unittest.TestCase):
             ),
         'Whoms\'tve\'s.'
         )
+
+    def test_formatting(self):
+        self.assertEqual(
+            replace_smart_quotes(
+                'prefers "<em>great literature</em>."'
+            ),
+            'prefers “<em>great literature</em>.”'
+        )
