@@ -317,11 +317,29 @@ def replace_smart_quotes(s: str):
     
 def add_smart_quotes(article: Article) -> Article:
     """Replaces regular quotes with smart quotes. Works on double and single quotes."""
-    text_tag: bs4.NavigableString
-    for text_tag in article.content.find_all(text=True):
-        if keep_verbatim(text_tag): continue
+    text_tags: List[bs4.NavigableString] = list(article.content.find_all(text=True))
+    # some hackery here: breaks between text tags might lead to invalid quotes
+    # example: "|<em>text</em>|" will make the first quote a right quote, since
+    # it's at the end of its text tag.
+    # To avoid this, we glue the first character in the following tag
+    # and the last character in the previous tag to the current tag.
 
-        text_tag.replace_with(replace_smart_quotes(text_tag))
+    for idx, tag in enumerate(text_tags):
+        if keep_verbatim(tag):
+            continue
+
+        before_tag = None if idx == 0 else text_tags[idx - 1]
+        after_tag = None if idx == (len(text_tags) - 1) else text_tags[idx + 1]
+
+        glued_tag = tag
+        if before_tag is not None:
+            glued_tag = before_tag[-1] + glued_tag
+        if after_tag is not None:
+            glued_tag = glued_tag + after_tag[0]
+
+        replaced = replace_smart_quotes(glued_tag)
+        # and remove the characters we glued on
+        tag.replace_with(replaced[1:-1])
 
     return article
 
