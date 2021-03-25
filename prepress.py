@@ -338,8 +338,14 @@ def add_smart_quotes(article: Article) -> Article:
             glued_tag = glued_tag + after_tag[0]
 
         replaced = replace_smart_quotes(glued_tag)
+
         # and remove the characters we glued on
-        tag.replace_with(replaced[1:-1])
+        if before_tag is not None:
+            replaced = replaced[1:]
+        if after_tag is not None:
+            replaced = replaced[:-1]
+            
+        tag.replace_with(replaced)
 
     return article
 
