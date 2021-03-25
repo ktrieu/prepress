@@ -58,3 +58,19 @@ class TestSmartQuotes(unittest.TestCase):
             ),
             'He said, “why”!'
         )
+
+    def test_single_quotes(self):
+        self.assertEqual(
+            replace_smart_quotes(
+                'He said, "I didn\'t say \'that\'.".'
+            ),
+            'He said, “I didn\'t say ‘that’.”.'
+        )
+
+    def test_apostrophes(self):
+        self.assertEqual(
+            replace_smart_quotes(
+                'Whoms\'tve\'s.'
+            ),
+        'Whoms\'tve\'s.'
+        )

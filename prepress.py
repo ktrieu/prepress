@@ -286,15 +286,32 @@ def replace_double_quote(before: str, after: str):
 
     return STRAIGHT_DOUBLE_QUOTE
 
+LEFT_SINGLE_QUOTE = '‘'
+RIGHT_SINGLE_QUOTE = '’'
+STRAIGHT_SINGLE_QUOTE = '\''
+
+def replace_single_quote(before: str, after: str):
+    # the rules for single quotes are the same as double quotes
+    double_quote = replace_double_quote(before, after)
+    if double_quote == RIGHT_DOUBLE_QUOTE:
+        return RIGHT_SINGLE_QUOTE
+    elif double_quote == LEFT_DOUBLE_QUOTE:
+        return LEFT_SINGLE_QUOTE
+    elif double_quote == STRAIGHT_DOUBLE_QUOTE:
+        return STRAIGHT_SINGLE_QUOTE
+
+
 def replace_smart_quotes(s: str):
     # create an array so we can modify this string
     char_array = list(s)
     
     for idx, char in enumerate(char_array):
+        before = None if idx == 0 else char_array[idx - 1]
+        after = None if idx == len(char_array) - 1 else char_array[idx + 1]
         if char == '"':
-            before = None if idx == 0 else char_array[idx - 1]
-            after = None if idx == len(char_array) - 1 else char_array[idx + 1]
             char_array[idx] = replace_double_quote(before, after)
+        if char == '\'':
+            char_array[idx] = replace_single_quote(before, after)
 
     return ''.join(char_array)
     
