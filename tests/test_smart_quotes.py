@@ -42,3 +42,19 @@ class TestSmartQuotes(unittest.TestCase):
             ),
             '“He said, “pog”?”'
         )
+
+    def test_question_mark(self):
+        self.assertEqual(
+            replace_smart_quotes(
+                'He said, "why"?'
+            ),
+            'He said, “why”?'
+        )
+
+    def test_exclamation_mark(self):
+        self.assertEqual(
+            replace_smart_quotes(
+                'He said, "why"!'
+            ),
+            'He said, “why”!'
+        )

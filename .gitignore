@@ -11,3 +11,6 @@ issue.xml
 
 #ignore wordpress dump
 wordpress_dump.xml
+
+# python bytecode, ugh
+*.pyc

@@ -258,7 +258,7 @@ def replace_dashes(article: Article) -> Article:
 # Quotes only really start with varieties of left brackets
 LEFT_PUNCTUATION = { '(', '{', '<' }
 # But they can be ended with any of the standard sentence enders
-RIGHT_PUNCTUATION = { ')', '}', '>', '.', ',', '?' }
+RIGHT_PUNCTUATION = { ')', '}', '>', '.', ',', '?', '!' }
 LEFT_DOUBLE_QUOTE = '“'
 RIGHT_DOUBLE_QUOTE = '”'
 STRAIGHT_DOUBLE_QUOTE = '"'
