@@ -14,6 +14,8 @@ import shutil
 import hashlib
 import subprocess
 
+import ssl
+
 import bs4
 from bs4 import BeautifulSoup, Tag
 import pylatex
@@ -28,7 +30,7 @@ CURRENT_DIR: str
 #273 pt, at 300 DPI
 DPI = 300
 IMAGE_WIDTH_DEFAULT = 1138
-USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36'
+USER_AGENT = "curl/7.61" # 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:81.0) Gecko/20100101 Firefox/81.0'
 
 
 XML_NS = {
@@ -137,6 +139,9 @@ def resize_image(image_path: str):
 
 #this is illegal or whatever, but I am the law.
 urllib.request.URLopener.version = USER_AGENT
+
+# we have an expired root cert, until that's replaced, disable SSL
+ssl._create_default_https_context = ssl._create_unverified_context
 
 def download_images(article: Article) -> Article:
     """Looks through the article content for image tags and downloads them locally and saves
