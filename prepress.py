@@ -1,6 +1,7 @@
 import argparse
 import os
 import os.path
+from smart_quotes import get_double_quote, get_quote_direction, get_single_quote
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement
 from typing import List, Callable, Union
@@ -18,6 +19,8 @@ import bs4
 from bs4 import BeautifulSoup, Tag
 import pylatex
 from PIL import Image
+
+from smart_quotes import get_quote_direction, get_double_quote, get_single_quote
 
 #The directory to store generated assets. Can be changed by command line argument.
 ASSET_DIR = 'assets'
@@ -255,52 +258,6 @@ def replace_dashes(article: Article) -> Article:
         text_tag.replace_with(new_tag)
     return article
 
-# Quotes only really start with varieties of left brackets
-LEFT_PUNCTUATION = { '(', '{', '<' }
-# But they can be ended with any of the standard sentence enders
-RIGHT_PUNCTUATION = { ')', '}', '>', '.', ',', '?', '!' }
-LEFT_DOUBLE_QUOTE = '“'
-RIGHT_DOUBLE_QUOTE = '”'
-STRAIGHT_DOUBLE_QUOTE = '"'
-
-def replace_double_quote(before: str, after: str):
-    # double quotes can occur at the beginning/end of strings
-    if before is None:
-        return LEFT_DOUBLE_QUOTE
-    if after is None:
-        return RIGHT_DOUBLE_QUOTE
-
-    # double quotes can occur before/after spaces
-    if before.isspace():
-        return LEFT_DOUBLE_QUOTE
-    # ditto for the right
-    if after.isspace():
-        return RIGHT_DOUBLE_QUOTE
-
-    # double quotes can occur before/after punctuation
-    if before in LEFT_PUNCTUATION:
-        return LEFT_DOUBLE_QUOTE
-    if after in RIGHT_PUNCTUATION:
-        return RIGHT_DOUBLE_QUOTE
-
-
-    return STRAIGHT_DOUBLE_QUOTE
-
-LEFT_SINGLE_QUOTE = '‘'
-RIGHT_SINGLE_QUOTE = '’'
-STRAIGHT_SINGLE_QUOTE = '\''
-
-def replace_single_quote(before: str, after: str):
-    # the rules for single quotes are the same as double quotes
-    double_quote = replace_double_quote(before, after)
-    if double_quote == RIGHT_DOUBLE_QUOTE:
-        return RIGHT_SINGLE_QUOTE
-    elif double_quote == LEFT_DOUBLE_QUOTE:
-        return LEFT_SINGLE_QUOTE
-    elif double_quote == STRAIGHT_DOUBLE_QUOTE:
-        return STRAIGHT_SINGLE_QUOTE
-
-
 def replace_smart_quotes(s: str):
     # create an array so we can modify this string
     char_array = list(s)
@@ -308,10 +265,11 @@ def replace_smart_quotes(s: str):
     for idx, char in enumerate(char_array):
         before = None if idx == 0 else char_array[idx - 1]
         after = None if idx == len(char_array) - 1 else char_array[idx + 1]
+        direction = get_quote_direction(before, after)
         if char == '"':
-            char_array[idx] = replace_double_quote(before, after)
+            char_array[idx] = get_double_quote(direction)
         if char == '\'':
-            char_array[idx] = replace_single_quote(before, after)
+            char_array[idx] = get_single_quote(direction)
 
     return ''.join(char_array)
     
@@ -329,7 +287,7 @@ def add_smart_quotes(article: Article) -> Article:
             continue
 
         before_tag = None if idx == 0 else text_tags[idx - 1]
-        after_tag = None if idx == (len(text_tags) - 1) else text_tags[idx + 1]
+        after_tag = None if idx == len(text_tags) - 1 else text_tags[idx + 1]
 
         glued_tag = tag
         if before_tag is not None:
