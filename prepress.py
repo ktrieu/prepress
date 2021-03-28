@@ -21,6 +21,8 @@ from bs4 import BeautifulSoup, Tag
 import pylatex
 from PIL import Image
 
+from smart_quotes import get_quote_direction, get_double_quote, get_single_quote
+
 #The directory to store generated assets. Can be changed by command line argument.
 ASSET_DIR = 'assets'
 #The location of the output file. Can be changed by command line argument'
@@ -260,17 +262,53 @@ def replace_dashes(article: Article) -> Article:
         text_tag.replace_with(new_tag)
     return article
 
-def add_smart_quotes(article: Article) -> Article:
-    """Replaces regular quotes with smart quotes. This function assumes quotes are not nested
-    and will simply convert pairs of quotes into left and right quotes.
-    """
-    text_tag: bs4.NavigableString
-    for text_tag in article.content.find_all(text=True):
-        if keep_verbatim(text_tag): continue
+def replace_smart_quotes(s: str):
+    # create an array so we can modify this string
+    char_array = list(s)
+    
+    for idx, char in enumerate(char_array):
+        before = None if idx == 0 else char_array[idx - 1]
+        after = None if idx == len(char_array) - 1 else char_array[idx + 1]
+        direction = get_quote_direction(before, after)
+        if char == '"':
+            char_array[idx] = get_double_quote(direction)
+        if char == '\'':
+            char_array[idx] = get_single_quote(direction)
 
-        #\1 will sub in the first matched group
-        new_tag = re.sub(r'"([^"]*)"', r'“\1”', text_tag)
-        text_tag.replace_with(new_tag)
+    return ''.join(char_array)
+    
+def add_smart_quotes(article: Article) -> Article:
+    """Replaces regular quotes with smart quotes. Works on double and single quotes."""
+    text_tags: List[bs4.NavigableString] = list(article.content.find_all(text=True))
+    # some hackery here: breaks between text tags might lead to invalid quotes
+    # example: "|<em>text</em>|" will make the first quote a right quote, since
+    # it's at the end of its text tag.
+    # To avoid this, we glue the first character in the following tag
+    # and the last character in the previous tag to the current tag.
+
+    for idx, tag in enumerate(text_tags):
+        if keep_verbatim(tag):
+            continue
+
+        before_tag = None if idx == 0 else text_tags[idx - 1]
+        after_tag = None if idx == len(text_tags) - 1 else text_tags[idx + 1]
+
+        glued_tag = tag
+        if before_tag is not None:
+            glued_tag = before_tag[-1] + glued_tag
+        if after_tag is not None:
+            glued_tag = glued_tag + after_tag[0]
+
+        replaced = replace_smart_quotes(glued_tag)
+
+        # and remove the characters we glued on
+        if before_tag is not None:
+            replaced = replaced[1:]
+        if after_tag is not None:
+            replaced = replaced[:-1]
+            
+        tag.replace_with(replaced)
+
     return article
 
 def remove_extraneous_spaces(article: Article) -> Article:
