@@ -1,7 +1,6 @@
 import argparse
 import os
 import os.path
-from smart_quotes import get_double_quote, get_quote_direction, get_single_quote
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement
 from typing import List, Callable, Union
