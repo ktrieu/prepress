@@ -59,6 +59,22 @@ class TestSmartQuotes(unittest.TestCase):
             'He said, “why”!'
         )
 
+    def test_colon(self):
+        self.assertEqual(
+            replace_smart_quotes(
+                'He said, "why":'
+            ),
+            'He said, “why”:'
+        )
+
+    def test_semicolon(self):
+        self.assertEqual(
+            replace_smart_quotes(
+                'He said, "why";'
+            ),
+            'He said, “why”;'
+        )
+
     def test_single_quotes(self):
         self.assertEqual(
             replace_smart_quotes(

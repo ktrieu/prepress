@@ -8,7 +8,7 @@ class QuoteDir(enum.Enum):
 # Quotes only really start with varieties of left brackets
 LEFT_PUNCTUATION = { '(', '{', '<' }
 # But they can be ended with any of the standard sentence enders
-RIGHT_PUNCTUATION = { ')', '}', '>', '.', ',', '?', '!' }
+RIGHT_PUNCTUATION = { ')', '}', '>', '.', ',', '?', '!', ':', ';' }
 
 DOUBLE_QUOTES = {
     QuoteDir.Left: '“',

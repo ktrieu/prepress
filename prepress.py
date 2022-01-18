@@ -34,6 +34,8 @@ DPI = 300
 IMAGE_WIDTH_DEFAULT = 1138
 USER_AGENT = "curl/7.61" # 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:81.0) Gecko/20100101 Firefox/81.0'
 
+# Unicode LINE SEPARATOR character
+LINE_SEPARATOR = '\u2028'
 
 XML_NS = {
     'content': 'http://purl.org/rss/1.0/modules/content/'
@@ -64,8 +66,8 @@ class Article:
     def to_xml_element(self) -> Element:
         article_tag = Element('article')
         title_tag = SubElement(article_tag, 'title')
-        #automatically add a newline to the title so content will start on a newline
-        title_tag.text = (self.title.replace('&', '&amp;') + '\n') if self.title else ""
+        # encode into html entities
+        title_tag.text = self.title.replace('&', '&amp;').replace('<', '&lt;') if self.title else ""
         content_tag = SubElement(article_tag, 'content')
         content_tag.text = str(self.content)
         return article_tag
@@ -235,6 +237,22 @@ def compile_latex(article: Article) -> Article:
             text_tag = replace_text_with_tag(match[0], link_tag, text_tag, article=article)
     return article
 
+def replace_inline_code(article: Article) -> Article:
+    """Replaces Markdown-style inline code with actual code tags
+    """
+    text_tag: bs4.NavigableString
+    p = re.compile(r'`([\s\S]+?)`')
+    for text_tag in article.content.find_all(text=True):
+        if keep_verbatim(text_tag): continue
+
+        for match in p.finditer(text_tag):
+            code = match[1]
+            code_tag = Tag(name='code')
+            code_tag.string = code
+            text_tag = replace_text_with_tag(match[0], code_tag, text_tag, article=article)
+
+    return article
+
 def replace_ellipses(article: Article) -> Article:
     """Replaces "..." with one single ellipse character
     """
@@ -326,6 +344,24 @@ def remove_extraneous_spaces(article: Article) -> Article:
         text_tag.replace_with(new_tag)
     return article
 
+def replace_newlines(article: Article) -> Article:
+    """Replaces newlines with the Unicode LINE SEPARATOR character (U+2028). This preserves
+    them in InDesign, which will treat newlines as paragraph breaks otherwise.
+    """
+    text_tag: bs4.NavigableString
+    for text_tag in article.content.find_all(text=True):
+        if keep_verbatim(text_tag):
+            # Verbatim tags are simple
+            new_tag = re.sub('\n', LINE_SEPARATOR, text_tag)
+            text_tag.replace_with(new_tag)
+        elif text_tag != '\n':
+            # Non-verbatim tags must be handled separately, and we must make sure it's not a
+            # double line-break (i.e. paragraph break)
+            new_tag = re.sub('(?<!\n)\n(?!\n)', LINE_SEPARATOR, text_tag)
+            text_tag.replace_with(new_tag)
+            pass
+    return article
+
 def add_footnotes(article: Article) -> Article:
     """Replaces footnotes in <sup></sup> tags, [\d] format, or *, **, etc."""
     text_tag: bs4.NavigableString
@@ -357,6 +393,8 @@ Use this to make any changes to articles you need before export, as well as to g
 POST_PROCESS: List[Callable[[Article], Article]] = [
     download_images,
     compile_latex,
+    replace_inline_code,
+    replace_newlines,
     replace_ellipses,
     replace_dashes,
     add_smart_quotes,
@@ -408,8 +446,16 @@ if __name__ == "__main__":
     os.chdir(CURRENT_DIR)
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as output_file:
         # do some processing first
+        # Remove extraneous lines
         transformed = "\n".join([line for line in html.unescape(ElementTree.tostring(root, encoding='unicode')).split("\n") if line.strip() != ''])
+        # Separate articles cleanly
         transformed = "</article>\n<article>".join([article for article in transformed.split("</article><article>")])
-        transformed = "</title>\n<content>".join([article for article in transformed.split("\n</title><content>")])
+        # Separate title and content cleanly
+        transformed = "</title>\n<content>".join([article for article in transformed.split("</title><content>")])
+        # Remove extraneous items from beginnings of lists
+        transformed = "<ul>".join([thing for thing in transformed.split("<ul>\n")])
+        transformed = "<ol>".join([thing for thing in transformed.split("<ol>\n")])
+        # Separate tags and regular content cleanly
+        transformed = re.sub(f'(?<=>){LINE_SEPARATOR}|{LINE_SEPARATOR}(?=<)', '\n', transformed)
         output_file.write(transformed)
     print('Issue written.')
