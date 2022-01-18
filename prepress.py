@@ -233,6 +233,22 @@ def compile_latex(article: Article) -> Article:
             text_tag = replace_text_with_tag(match[0], link_tag, text_tag, article=article)
     return article
 
+def replace_inline_code(article: Article) -> Article:
+    """Replaces Markdown-style inline code with actual code tags
+    """
+    text_tag: bs4.NavigableString
+    p = re.compile(r'`([\s\S]+?)`')
+    for text_tag in article.content.find_all(text=True):
+        if keep_verbatim(text_tag): continue
+
+        for match in p.finditer(text_tag):
+            code = match[1]
+            code_tag = Tag(name='code')
+            code_tag.string = code
+            text_tag = replace_text_with_tag(match[0], code_tag, text_tag, article=article)
+
+    return article
+
 def replace_ellipses(article: Article) -> Article:
     """Replaces "..." with one single ellipse character
     """
@@ -373,6 +389,7 @@ Use this to make any changes to articles you need before export, as well as to g
 POST_PROCESS: List[Callable[[Article], Article]] = [
     download_images,
     compile_latex,
+    replace_inline_code,
     replace_newlines,
     replace_ellipses,
     replace_dashes,
