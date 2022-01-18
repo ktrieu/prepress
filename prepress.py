@@ -188,6 +188,10 @@ def compile_latex_str(latex: str, filename: str, display: bool = False):
     document.packages.append(pylatex.Package('amssymb'))
     document.packages.append(pylatex.Package('amsfonts'))
     document.preamble.append(pylatex.Command('thispagestyle', 'empty'))
+    # People seem to think \Z, \R and \Q exist, even though they don't. Just add them in to avoid problems.
+    document.preamble.append(pylatex.NoEscape(r'\newcommand{\Z}{\mathbb{Z}}'))
+    document.preamble.append(pylatex.NoEscape(r'\newcommand{\R}{\mathbb{R}}'))
+    document.preamble.append(pylatex.NoEscape(r'\newcommand{\Q}{\mathbb{Q}}'))
     with document.create(Preview()):
         document.append(pylatex.NoEscape((r'\[' if display else r'\(') + latex + (r'\]' if display else r'\)')))
     document.generate_pdf(filename, compiler='pdflatex')
