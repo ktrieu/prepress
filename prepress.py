@@ -44,6 +44,9 @@ XML_NS = {
 # Tags within which we should not be replacing content
 VERBATIM_TAGS = ('pre', 'code')
 
+#this is illegal or whatever, but I am the law.
+urllib.request.URLopener.version = USER_AGENT
+
 class Article:
 
     def __init__(self):
@@ -140,12 +143,6 @@ def resize_image(image_path: str):
     h = image.height
     scale_factor = IMAGE_WIDTH_DEFAULT / w
     image.resize((int(w * scale_factor), int(h * scale_factor))).save(image_path, dpi=(DPI, DPI))
-
-#this is illegal or whatever, but I am the law.
-urllib.request.URLopener.version = USER_AGENT
-
-# we have an expired root cert, until that's replaced, disable SSL
-ssl._create_default_https_context = ssl._create_unverified_context
 
 def download_images(article: Article) -> Article:
     """Looks through the article content for image tags and downloads them locally and saves
