@@ -253,6 +253,23 @@ def replace_inline_code(article: Article) -> Article:
 
     return article
 
+def convert_manual_syntax_highlighting(article: Article) -> Article:
+    """Manually highlighted code gets custom styling
+    """
+    text_tag: bs4.NavigableString
+    for verb_tag in article.content.find_all(VERBATIM_TAGS):
+        # Highlight strong
+        for strong_tag in verb_tag.find_all(["strong", "b"]):
+            strong_tag.name = "mathNEWS--code-strong"
+        # Highlight italicized
+        for em_tag in verb_tag.find_all(["em", "i"]):
+            em_tag.name = "mathNEWS--code-em"
+        # Highlight underlined
+        for u_tag in verb_tag.find_all("u"):
+            u_tag.name = "mathNEWS--code-u"
+
+    return article
+
 def replace_ellipses(article: Article) -> Article:
     """Replaces "..." with one single ellipse character
     """
@@ -399,7 +416,8 @@ POST_PROCESS: List[Callable[[Article], Article]] = [
     replace_dashes,
     add_smart_quotes,
     remove_extraneous_spaces,
-    add_footnotes
+    add_footnotes,
+    convert_manual_syntax_highlighting
 ]
 
 def create_asset_dirs():

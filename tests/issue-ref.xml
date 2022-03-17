@@ -797,4 +797,27 @@ An anonymous municipal official told us that the radiation levels in surrounding
 Trying to get a more detailed government response, we managed to stop Garg Rickover, provincial Minister of Energy, outside of his house for a quick interview.
 “I'd make a comment on the state of affairs, but I really have to get my wife and kids in the car,” he said, profusely sweating inside of a hazmat suit while carrying a three-headed pigeon his cat had caught in the backyard.
 When informed by our reporter of his appearance, the Minister immediately sprouted an extra eye and four extra mouths, before emitting a guttural howl and ohgodishecomingtowardushel — 
-Completely Headless Nick</content></article></issue>
+Completely Headless Nick</content></article>
+<article><title>III. Lambdas? Oh, you mean functors?</title>
+<content>Shut up. The C++ Police are close. I can hear them. The editors too. They're going to string me up in the plaza and kill me. But first, I have one more secret I am to bestow unto you. Listen carefully. Okay:
+Remember lambdas? How do they work? Why? Who cares? Me. I mean, those must've been pretty hard to implement, eh? Pretty radical, being able to just have a function be an object like that. I bet they went to some lengths to write that into GCC.
+Wrong. Wrong; wrong; wrong. You know how lambdas act like objects, right? Well, I shouldn't say they <em>act</em><em> like objects</em> — rather, they <em>are</em> objects. Okay, then an object needs a type. We've been glossing over this fact by just declaring our lambdas with <code>auto</code> all the time, but that seems rather obstructionist, hm? Let's take a look.
+<pre><mathNEWS--code-strong>int </mathNEWS--code-strong>main() {
+<mathNEWS--code-strong>  int</mathNEWS--code-strong> x;
+<mathNEWS--code-strong>  auto</mathNEWS--code-strong> fun = [=]() <mathNEWS--code-strong>mutable</mathNEWS--code-strong> -&gt; <mathNEWS--code-strong>void</mathNEWS--code-strong> {     ++x;     std::cout &lt;&lt; __func__ &lt;&lt; ": " &lt;&lt; x &lt;&lt; std::endl;   };   fun(); fun(); fun(); }</pre>
+Compile this code. What does it print?
+<pre>operator(): 1 operator(): 2 operator(): 3</pre>
+Oh, neat, the modified copy-capture of <code>x</code> gets preserved across invocations of the lambda. Also, hey, I thought that operator() was a member function given to classes to make them act like… oh… oh no. Computer, <em>enhance</em>.
+<pre><mathNEWS--code-strong>int</mathNEWS--code-strong> main() {   <mathNEWS--code-strong>int</mathNEWS--code-strong> x = 0;   <mathNEWS--code-strong>auto</mathNEWS--code-strong> fun = [=]() <mathNEWS--code-em>mutable</mathNEWS--code-em> -&gt; <mathNEWS--code-strong>void</mathNEWS--code-strong> {     ++x;     std::cout &lt;&lt; <mathNEWS--code-u>__PRETTY_FUNCTION__</mathNEWS--code-u> &lt;&lt; std::endl;   };   fun(); fun(); fun(); }</pre>
+Compile this code with GCC. Run it. Tell me what it prints.
+<pre>main()::&lt;lambda()&gt; mutable: 1 main()::&lt;lambda()&gt; mutable: 2 main()::&lt;lambda()&gt; mutable: 3</pre>
+Okay. So, you probably learned in a certain second-year CS course that classes in C++ can be fitted with an <code>operator()</code> method, which lets you “invoke” objects of the class as if the+y were a function. In an effort to sound like mathematicians, we call a class equipped with this method a <em>functor</em>. The nice thing about these so-called functors is that they <em>preserve state</em>. In particular, the data members of the class can be seen as state indicators to the function, so that information can be preserved across invocations. Here's a cute little example:
+<pre><mathNEWS--code-strong>struct</mathNEWS--code-strong> Functor {   <mathNEWS--code-strong>int</mathNEWS--code-strong> x = 0;   <mathNEWS--code-strong>void</mathNEWS--code-strong> <mathNEWS--code-strong>operator()</mathNEWS--code-strong>() {     ++x;     std::cout &lt;&lt; __PRETTY_FUNCTION__ &lt;&lt; std::endl;   } };
+<mathNEWS--code-strong>int</mathNEWS--code-strong> main() {   Functor fun;   fun(); fun(); fun(); }</pre>
+Here's what gets printed:
+<pre>void Functor::operator()(): 1 void Functor::operator()(): 2 void Functor::operator()(): 3</pre>
+Mmm. So you see how it is now, yes? This example was not so cute, nor was it arbitrarily chosen. This looks strikingly similar to what we had before. That's because, in fact, they're the same.
+When you create a lambda, what actually happens behind the scenes is that the compiler generates a unique functor class, defining its <code><mathNEWS--code-strong>operator</mathNEWS--code-strong>()</code> method by the body of the lambda. If <code>mutable</code> is not declared in the lambda, then the <code><mathNEWS--code-em>operator</mathNEWS--code-em>()</code> method of the functor is declared <code>const</code>. All captures in the lambda become member variables for the generated functor class; those captured by copy are made direct members by copy, and those captured by reference get reference members. The functor generated by the compiler is called a <em>closure type</em>, and we say that the result of a lambda expression is called a <em>closure</em>.
+Nothing new here after all, eh? It's all syntactic sugar. But at the end of the day, isn't that all a programming language ever is?
+Now run; leave. They'll be prying the <code>type_traits</code> out of my cold, dead hands in no time.
+jeff</content></article></issue>
