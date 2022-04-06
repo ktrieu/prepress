@@ -2153,11 +2153,12 @@ That infinity of everything is fearsome because it is the unknown. Comparatively
 Let’s go back to Google and that recursive link (which transformed into a recursive program with the addition of you (whose exit condition was tedium (and the program would run out of memory upon your death (this means that the program could potentially run for 80 years (on American average))))). Because this is an extended metaphor, I’m also going back to the proposed title of my novel excerpt, which looked like a bunch of nested S-expressions (and just look at these parentheticals that I’m using as rhetoric (doesn’t it just look like some cute little Racket code? (and that one was a predicate))). Writing is hard because I keep going on these tangents (and that’s just how we think (every thought keeps leading to another (in a way alike to these parentheticals))). Parsing that title was so hard because I couldn’t keep track of the previous layers (and likewise, forming a coherent argument is pretty hard because I can’t keep track of my train of thought).
 
 Speaking of Racket, here’s our favourite recursive function:
-<pre>(define (factorial n)
+<pre>##racket##
+(define (factorial n)
   (if (= n 0)
       1
       (* n (factorial (- n 1))))</pre>
-When DrRacket is at `(factorial 3)` it cannot tell if that was the beginning of the recursive chain, or if it’s part of another call to the function, say `(factorial 6)`. If I let my mind wander, I start going down parentheticals again (and this is often called a thought spiral (but I would say it’s more like a dense S-expression of thoughts (nested like the DrRacket stepper trying to evaluate a naive Fibonacci function (and also like the DrRacket stepper, I never know which thoughts (if any) preceded this one)))). All I know is that this thought leads to that one (and so I should probably keep going there (I see no reason to stop)). I could keep going until I ran out of memory and died (but realistically, sleep is a sufficient way of artificially limiting stack space).
+When DrRacket is at <code>(factorial 3)</code> it cannot tell if that was the beginning of the recursive chain, or if it’s part of another call to the function, say <code>(factorial 6)</code>. If I let my mind wander, I start going down parentheticals again (and this is often called a thought spiral (but I would say it’s more like a dense S-expression of thoughts (nested like the DrRacket stepper trying to evaluate a naive Fibonacci function (and also like the DrRacket stepper, I never know which thoughts (if any) preceded this one)))). All I know is that this thought leads to that one (and so I should probably keep going there (I see no reason to stop)). I could keep going until I ran out of memory and died (but realistically, sleep is a sufficient way of artificially limiting stack space).
 
 My favourite thing to look at is the sky. I love how deep it is. I love how I feel like I’m falling towards it when I look up. The sky is limitless, it is that infinity again, the one that terrifies and inspires us with possibilities. But these days I am always looking inwards at this other infinity, the one that curls and twists up inside of me, all inside a conveniently and deceivingly small space, and I never know it.]]></content:encoded>
 		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
@@ -2863,6 +2864,70 @@ Thank you all for your contributions!
 <p style="text-align: right;">Various Artists</p>]]></content:encoded>
 		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
 		<wp:post_id>036</wp:post_id>
+		<wp:post_date>0000-00-00 00:00:00</wp:post_date>
+		<wp:post_date_gmt>0000-00-00 00:00:00</wp:post_date_gmt>
+		<wp:comment_status>open</wp:comment_status>
+		<wp:ping_status>open</wp:ping_status>
+		<wp:post_name></wp:post_name>
+		<wp:status>draft</wp:status>
+		<wp:post_parent>0</wp:post_parent>
+		<wp:menu_order>0</wp:menu_order>
+		<wp:post_type>post</wp:post_type>
+		<wp:post_password></wp:post_password>
+		<wp:is_sticky>0</wp:is_sticky>
+		<category domain="category" nicename="editor-okayed"><![CDATA[Editor okayed]]></category>
+		<category domain="category" nicename="uncategorized"><![CDATA[Uncategorized]]></category>
+		<category domain="post_tag" nicename="v1xxiy"><![CDATA[v1xxiy]]></category>
+		<wp:postmeta>
+			<wp:meta_key>_edit_last</wp:meta_key>
+			<wp:meta_value><![CDATA[1]]></wp:meta_value>
+		</wp:postmeta>
+    </item>
+    <item>
+        <title>-[-----&#062;+&#060;]&#062;--.</title>
+		<link>https://mathnews.uwaterloo.ca/?p=26534</link>
+		<pubDate>Mon, 30 Nov -0001 00:00:00 +0000</pubDate>
+		<dc:creator><![CDATA[mathNEWS]]></dc:creator>
+		<guid isPermaLink="false">http://mathnews.uwaterloo.ca/</guid>
+		<description></description>
+		<content:encoded><![CDATA[There is a pure joy to be found when interpreting Brainfuck in legitimate programming languages.
+
+Lemma 1.1. Desmos is a legitimate programming language.
+
+Many of you, dear readers, sensible individuals, may have objections: what do you mean, dear writer, when you say legitimate?
+
+Definition 1.2. A legitimate programming language is one that can interpret Brainfuck.
+
+Some of you, readers, individuals too sensible for sensibility's sake (a trait which frankly your dear writer does not find dear), may have objections: is that reasoning not circular? I shall not deign to answer you.
+
+A brief introduction for the uninitiated: in 1993, wanting to design the minimal compiler, Urban Müller created Brainfuck. A Brainfuck program consists of a sequence of the eight characters `&gt;&lt;+-,.[]`, where:
+
+`&gt;` and `&lt;` move the memory pointer right and left.
+`+` and `-` increment and decrement the cell the memory pointer is pointing at.
+`,` and `.` take input into the memory cell being pointed at from an input array and output the memory cell being pointed at to an output array.
+`[` and `]` act as a while loop: if the current memory cell is nonzero, then (re)enter the loop; else, jump to the end.
+
+By all rights Desmos shouldn't be able to do this. While it supports an unexpected number of functions (did you know you can get the Pearson correlation coefficient on two arrays in Desmos?), they all halt. Desmos' variable, array, and function definition features don't help either: recursion isn't allowed. No Y-combinators for us. Indeed, Desmos <em>without actions</em> isn't able to do this.
+
+A Desmos action is a variable mutation on some kind of trigger. For example, with the array definition `M = [1...10]`, the action `M -&gt; [1...20]` will, on trigger, reassign `M` to the array of numbers from 1 to 20. Now, there are limitations: for example, an action may only redefine the entire variable. Something like `M[5] -&gt; 100` is not permitted. However, using Desmos conditional statements (`{(boolean expression) : (true clause), (false clause)}`) and Desmos array comprehensions (`[(expression) for (variable) = (range)]`), we can define a function `C(L, i, n) = [{k = i : n, L[k]} for k = [1...length(L)]]` that replaces the `i`th element of `L` with `n`. Then, we finish off with an action: `M &lt;- L(M, 5, 100)`.
+
+In a similar vein, we can define array push as `Pu(L, n) = [{k = length(L) + 1 : n, L(k)} for k = [1...length(L) + 1]]` and array pop as `Po(L) = (exercise to the reader)`. With this, we have all of the puzzle pieces necessary to begin the task at hand.
+
+We'll let `B` be the program array, `M` the memory array, and `I` the input array, with their respective pointers `pB, pM, pI`. As Desmos arrays don't support strings, we'll have to encode Brainfuck commands into their ASCII values: `&gt;` is 62, `&lt;` is 60, `+` is 43, `-` is 45, `.` is 46, `,` is 44, `[` is 91, `]` is 93. In addition, we'll obviously want an output array O, and less obviously a loop-tracking array J to be used as a "stack" (stack in quotation marks because it's just an array operated on using solely `Pu` and `Po`).
+
+Time for some actions. The easiest to implement are the resets: `M -&gt; [0 for k = [1...1000]], J -&gt; [], O -&gt; [], pB -&gt; 1, pM -&gt; 1, pI -&gt; 1`. Note that while Desmos supports arrays longer than what we've set our memory array to, we compromise for the sake of efficiency (I implore the reader to ignore the O(n) array mutations). Now, on the topic of the memory array: when does it update? If the instruction pointer is beyond the instruction sequence, the program has terminated. If the instruction pointer is pointing at a `+` or a `-`, it updates the current memory cell. And, if the instruction pointer is pointing at a `,`, it reads into the current memory cell from input. Thankfully, Desmos allows us to express this logic idiomatically: `M -&gt; {pB &gt; length(B) : M, {B[pB] = 43 : C(M, pM, {M[pM] = 255 : 0, M[pM] + 1}), {B[pB] = 45 : C(M, pM, {M[pM] = 0 : 255, M[pM] - 1}), {B[pB] = 44 : C(M, pM, I[pI]), M}}}}`. It is left as an exercise to the reader (that's you!) to figure out the appropriate actions to update `pM`, `pI`, and `O`.
+
+Which leaves us to deal with `J` and `pB`. In essence, `J` is a stack keeping track of all open `[` commands. Upon reaching a `]`, we look at the current memory cell to see if we need to loop, and then at `J` to see where we need to jump to if looping is necessary. Technically, we don't need `J`: we can just scan the entire instruction sequence backwards starting at a certain index to find the first occurrence of a `[` to jump back to. In fact, the code we have does this in the opposite direction — starting from a `[`, it determines where the end of the loop is in case it is allowed to skip execution entirely. However, `J` is a nice way to allow the reader to exercise their usage of the `Pu` and `Po` functions. What can I say other than "enjoy"?
+
+The following implementation of `pB` may look daunting, but it's just the amalgamation of everything we have previously discussed (note that `(boolean expression A) {(boolean expression B)}` is Desmos' syntax for the and operator): `pB -&gt; {pB &gt; length(B) : pB, {B[pB] = 93 : {M[pM] = 0 : pB + 1, J[length(J)] + 1}, {B[pB] = 91 : {M[pM] = 0 : min([{k &gt; pB {B[k] = 93} : k, 100000} for k = [1...length(B)]]), pB + 1}, pB + 1}}}`. And we are done.
+
+Desmos actions can be triggered in two ways: on click, or periodically on a ticker. Mercifully, 0 milliseconds is a valid ticker interval, and so we simply chain our actions together and execute. And should we pass to our program the instruction sequence `B = [62,43,43,43,43,43,43,43,43,91,60,43,43,43,43,43,43,43,43,43,62,45,93,60,46,62,43,43,43,43,91,60,43,43,43,43,43,43,43,62,45,93,60,43,46,43,43,43,43,43,43,43,46,46,43,43,43,46,62,62,43,43,43,43,43,43,91,60,43,43,43,43,43,43,43,62,45,93,60,43,43,46,45,45,45,45,45,45,45,45,45,45,45,45,46,62,43,43,43,43,43,43,91,60,43,43,43,43,43,43,43,43,43,62,45,93,60,43,46,60,46,43,43,43,46,45,45,45,45,45,45,46,45,45,45,45,45,45,45,45,46,62,62,62,43,43,43,43,91,60,43,43,43,43,43,43,43,43,62,45,93,60,43,46]`, why, it would give us a friendly `O = [72,101,108,108,111,44,32,87,111,114,108,100,33]`.
+
+And we would say "hello" back.
+
+ƕ]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>037</wp:post_id>
 		<wp:post_date>0000-00-00 00:00:00</wp:post_date>
 		<wp:post_date_gmt>0000-00-00 00:00:00</wp:post_date_gmt>
 		<wp:comment_status>open</wp:comment_status>

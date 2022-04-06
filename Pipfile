@@ -9,6 +9,7 @@ verify_ssl = true
 beautifulsoup4 = "*"
 pylatex = "*"
 pillow = "*"
+pygments = "*"
 
 [requires]
 python_version = "3.7"

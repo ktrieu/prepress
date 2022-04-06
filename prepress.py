@@ -21,7 +21,11 @@ from bs4 import BeautifulSoup, Tag
 import pylatex
 from PIL import Image
 
+import pygments as pyg
+from pygments.lexers import get_lexer_by_name, guess_lexer
+
 from smart_quotes import get_quote_direction, get_double_quote, get_single_quote
+from ind_formatter import IndFormatter
 
 #The directory to store generated assets. Can be changed by command line argument.
 ASSET_DIR = 'assets'
@@ -62,7 +66,7 @@ class Article:
         file_prefix = re.sub(r"\W",  "", self.title[0:10].encode('ascii', errors='ignore').decode().replace(' ', '_'))
         filename = file_prefix + '_' + file
         return os.path.join(ASSET_DIR, 'pdf', filename)
-    
+
     def to_xml_element(self) -> Element:
         article_tag = Element('article')
         title_tag = SubElement(article_tag, 'title')
@@ -82,9 +86,9 @@ def is_for_issue(article_tag: Element, issue_num: str) -> bool:
     return False
 
 def filter_articles(tree: ElementTree, issue_num: str) -> List[Article]:
-    """Given an ElementTree parsed from an XML dump, returns a list 
+    """Given an ElementTree parsed from an XML dump, returns a list
     of Article instances containing all the articles tagged with issue_num.
-    """ 
+    """
     root = tree.getroot()
     articles: List[Article] = []
     article_tags = root.findall('.//item')
@@ -149,7 +153,7 @@ ssl._create_default_https_context = ssl._create_unverified_context
 
 def download_images(article: Article) -> Article:
     """Looks through the article content for image tags and downloads them locally and saves
-    them as an asset. Then, it changes the link text to point to the local copy instead of 
+    them as an asset. Then, it changes the link text to point to the local copy instead of
     the web copy.
     """
     img_tag: Tag
@@ -287,7 +291,7 @@ def replace_dashes(article: Article) -> Article:
 def replace_smart_quotes(s: str):
     # create an array so we can modify this string
     char_array = list(s)
-    
+
     for idx, char in enumerate(char_array):
         before = None if idx == 0 else char_array[idx - 1]
         after = None if idx == len(char_array) - 1 else char_array[idx + 1]
@@ -298,7 +302,7 @@ def replace_smart_quotes(s: str):
             char_array[idx] = get_single_quote(direction)
 
     return ''.join(char_array)
-    
+
 def add_smart_quotes(article: Article) -> Article:
     """Replaces regular quotes with smart quotes. Works on double and single quotes."""
     text_tags: List[bs4.NavigableString] = list(article.content.find_all(text=True))
@@ -328,7 +332,7 @@ def add_smart_quotes(article: Article) -> Article:
             replaced = replaced[1:]
         if after_tag is not None:
             replaced = replaced[:-1]
-            
+
         tag.replace_with(replaced)
 
     return article
@@ -354,12 +358,28 @@ def replace_newlines(article: Article) -> Article:
             # Verbatim tags are simple
             new_tag = re.sub('\n', LINE_SEPARATOR, text_tag)
             text_tag.replace_with(new_tag)
-        elif text_tag != '\n':
+        else:
             # Non-verbatim tags must be handled separately, and we must make sure it's not a
-            # double line-break (i.e. paragraph break)
-            new_tag = re.sub('(?<!\n)\n(?!\n)', LINE_SEPARATOR, text_tag)
+            # double line-break (i.e. paragraph break). We also don't replace it if it's
+            # immediately before or after a tag
+            # FIXME: this is actually a hacky solution that can fail for poetry where a line ends
+            #        with a tag. Disambiguate between block and inline tags?
+            prev_sibling = text_tag.find_previous_sibling()
+            next_sibling = text_tag.find_next_sibling()
+            # Turn CRLF into LF and split along single line breaks
+            new_tag_builder = re.split('(?<!\n)\n(?!\n)', re.sub('\r\n', '\n', text_tag))
+            # Keep single line breaks that appear next to another tag, by throwing them out and
+            # manually placing a newline character
+            prefix = ''
+            suffix = ''
+            if new_tag_builder[0] == '' and prev_sibling != None:
+                new_tag_builder = new_tag_builder[1:]
+                prefix = '\n'
+            if new_tag_builder[-1] == '' and next_sibling != None:
+                new_tag_builder = new_tag_builder[:-1]
+                suffix = '\n'
+            new_tag = bs4.NavigableString(prefix + LINE_SEPARATOR.join(new_tag_builder) + suffix)
             text_tag.replace_with(new_tag)
-            pass
     return article
 
 def add_footnotes(article: Article) -> Article:
@@ -383,9 +403,42 @@ def add_footnotes(article: Article) -> Article:
                 footnote_counter += 1
     return article
 
+def highlight_code(article: Article) -> Article:
+    """Uses Pygments to highlight code in <pre> tags"""
+    pre_tag: bs4.NavigableString
+    lang_regex = re.compile(r'\s*##(\S+)##')
+    formatter = IndFormatter()
+    for pre_tag in article.content.find_all('pre'):
+        # Find language definition
+        pre_text = html.escape(pre_tag.get_text())
+        lexer = None
+        lang_name = lang_regex.match(pre_text)
+        if lang_name:
+            # Language name provided
+            pre_text = pre_text[lang_name.end():]
+            try:
+                lexer = get_lexer_by_name(lang_name[1])
+            except pyg.util.ClassNotFound:
+                pass
+        if lexer is None:
+            # Language name lookup failed or not provided, try to guess
+            try:
+                lexer = guess_lexer(pre_text)
+            except pyg.util.ClassNotFound:
+                # This pre failed, continue onto next pre tag
+                continue
+
+        # Highlight the code
+        pre_highlighted = pyg.highlight(pre_text.strip(), lexer, formatter)
+        pre_highlighted = pre_highlighted.replace('\n</pre>', '</pre>')
+        pre_highlighted = BeautifulSoup(pre_highlighted, 'html.parser')
+        pre_tag.replace_with(pre_highlighted)
+
+    return article
+
 """POST_PROCESS is a list of functions that take Article instances and return Article instances.
 
-For each article we parse, every function in this list will be applied to it in order, and the 
+For each article we parse, every function in this list will be applied to it in order, and the
 result saved back to the article list.
 
 Use this to make any changes to articles you need before export, as well as to generate assets.
@@ -394,6 +447,7 @@ POST_PROCESS: List[Callable[[Article], Article]] = [
     download_images,
     compile_latex,
     replace_inline_code,
+    highlight_code,
     replace_newlines,
     replace_ellipses,
     replace_dashes,
@@ -412,7 +466,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='article export for mathNEWS')
     parser.add_argument('issue', help='the issue number to export for, e.g, v141i3')
     parser.add_argument('xml_dump', help='location of the XML dump to read from')
-    parser.add_argument('-o', '--xml_output', 
+    parser.add_argument('-o', '--xml_output',
         help='location of the file to output to',
         default='issue.xml')
     parser.add_argument('-a', '--assets',
@@ -455,7 +509,5 @@ if __name__ == "__main__":
         # Remove extraneous items from beginnings of lists
         transformed = "<ul>".join([thing for thing in transformed.split("<ul>\n")])
         transformed = "<ol>".join([thing for thing in transformed.split("<ol>\n")])
-        # Separate tags and regular content cleanly
-        transformed = re.sub(f'(?<=>){LINE_SEPARATOR}|{LINE_SEPARATOR}(?=<)', '\n', transformed)
         output_file.write(transformed)
     print('Issue written.')
