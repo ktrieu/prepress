@@ -1,4 +1,15 @@
+import enum
 from pygments.formatter import Formatter
+
+class SyntaxHighlightType(enum.Enum):
+    Bold = 'strong'
+    Italic = 'em'
+    BoldItalic = 'em2'
+    Underline = 'u'
+
+# Automatically generate the tag names
+SYNTAX_HIGHLIGHT_PREFIX = 'mathnews--code-'
+SYNTAX_HIGHLIGHT_TAGS = { member: SYNTAX_HIGHLIGHT_PREFIX + member.value for member in SyntaxHighlightType }
 
 class IndFormatter(Formatter):
     """InDesign compatible formatter, based on https://pygments.org/docs/formatterdevelopment/#html-3-2-formatter
@@ -16,19 +27,21 @@ class IndFormatter(Formatter):
         # that contains the parsed style values.
         for token, style in self.style:
             start = end = ''
+            tag_type = None
             # a style item is a tuple in the following form:
             if style['bold'] and style['italic']:
-                start += '<mathNEWS--code-em2>'
-                end = '</mathNEWS--code-em2>' + end
+                tag_type = SyntaxHighlightType.BoldItalic
             elif style['bold']:
-                start += '<mathNEWS--code-strong>'
-                end = '</mathNEWS--code-strong>' + end
+                tag_type = SyntaxHighlightType.Bold
             elif style['italic']:
-                start += '<mathNEWS--code-em>'
-                end = '</mathNEWS--code-em>' + end
+                tag_type = SyntaxHighlightType.Italic
             elif style['underline'] or style['border']:
-                start += '<mathNEWS--code-u>'
-                end = '</mathNEWS--code-u>' + end
+                tag_type = SyntaxHighlightType.Underline
+
+            if tag_type != None:
+                start = f'<{SYNTAX_HIGHLIGHT_TAGS[tag_type]}>'
+                end = f'</{SYNTAX_HIGHLIGHT_TAGS[tag_type]}>'
+
             self.styles[token] = (start, end)
 
     def format(self, tokensource, outfile):

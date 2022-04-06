@@ -25,7 +25,7 @@ import pygments as pyg
 from pygments.lexers import get_lexer_by_name, guess_lexer
 
 from smart_quotes import get_quote_direction, get_double_quote, get_single_quote
-from ind_formatter import IndFormatter
+from syntax_highlighting import IndFormatter, SyntaxHighlightType, SYNTAX_HIGHLIGHT_TAGS
 
 #The directory to store generated assets. Can be changed by command line argument.
 ASSET_DIR = 'assets'
@@ -261,13 +261,50 @@ def convert_manual_syntax_highlighting(article: Article) -> Article:
     for verb_tag in article.content.find_all(VERBATIM_TAGS):
         # Highlight strong
         for strong_tag in verb_tag.find_all(["strong", "b"]):
-            strong_tag.name = "mathNEWS--code-strong"
+            strong_tag.name = SYNTAX_HIGHLIGHT_TAGS[SyntaxHighlightType.Bold]
         # Highlight italicized
         for em_tag in verb_tag.find_all(["em", "i"]):
-            em_tag.name = "mathNEWS--code-em"
+            em_tag.name = SYNTAX_HIGHLIGHT_TAGS[SyntaxHighlightType.Italic]
         # Highlight underlined
         for u_tag in verb_tag.find_all("u"):
-            u_tag.name = "mathNEWS--code-u"
+            u_tag.name = SYNTAX_HIGHLIGHT_TAGS[SyntaxHighlightType.Underline]
+
+    return article
+
+def highlight_code(article: Article) -> Article:
+    """Uses Pygments to highlight code in <pre> tags
+    """
+    pre_tag: bs4.NavigableString
+    lang_regex = re.compile(r'\s*##(\S+)##')
+    formatter = IndFormatter()
+    for pre_tag in article.content.find_all('pre'):
+        # ignore if already highlighted
+        if pre_tag.find(SYNTAX_HIGHLIGHT_TAGS.values()):
+            continue
+        # Find language definition
+        pre_text = html.escape(pre_tag.get_text())
+        lexer = None
+        lang_name = lang_regex.match(pre_text)
+        if lang_name:
+            # Language name provided
+            pre_text = pre_text[lang_name.end():]
+            try:
+                lexer = get_lexer_by_name(lang_name[1])
+            except pyg.util.ClassNotFound:
+                pass
+        if lexer is None:
+            # Language name lookup failed or not provided, try to guess
+            try:
+                lexer = guess_lexer(pre_text)
+            except pyg.util.ClassNotFound:
+                # This pre failed, continue onto next pre tag
+                continue
+
+        # Highlight the code
+        pre_highlighted = pyg.highlight(pre_text.strip(), lexer, formatter)
+        pre_highlighted = pre_highlighted.replace('\n</pre>', '</pre>')
+        pre_highlighted = BeautifulSoup(pre_highlighted, 'html.parser')
+        pre_tag.replace_with(pre_highlighted)
 
     return article
 
@@ -417,39 +454,6 @@ def add_footnotes(article: Article) -> Article:
                 footnote_counter += 1
     return article
 
-def highlight_code(article: Article) -> Article:
-    """Uses Pygments to highlight code in <pre> tags"""
-    pre_tag: bs4.NavigableString
-    lang_regex = re.compile(r'\s*##(\S+)##')
-    formatter = IndFormatter()
-    for pre_tag in article.content.find_all('pre'):
-        # Find language definition
-        pre_text = html.escape(pre_tag.get_text())
-        lexer = None
-        lang_name = lang_regex.match(pre_text)
-        if lang_name:
-            # Language name provided
-            pre_text = pre_text[lang_name.end():]
-            try:
-                lexer = get_lexer_by_name(lang_name[1])
-            except pyg.util.ClassNotFound:
-                pass
-        if lexer is None:
-            # Language name lookup failed or not provided, try to guess
-            try:
-                lexer = guess_lexer(pre_text)
-            except pyg.util.ClassNotFound:
-                # This pre failed, continue onto next pre tag
-                continue
-
-        # Highlight the code
-        pre_highlighted = pyg.highlight(pre_text.strip(), lexer, formatter)
-        pre_highlighted = pre_highlighted.replace('\n</pre>', '</pre>')
-        pre_highlighted = BeautifulSoup(pre_highlighted, 'html.parser')
-        pre_tag.replace_with(pre_highlighted)
-
-    return article
-
 """POST_PROCESS is a list of functions that take Article instances and return Article instances.
 
 For each article we parse, every function in this list will be applied to it in order, and the
@@ -461,14 +465,14 @@ POST_PROCESS: List[Callable[[Article], Article]] = [
     download_images,
     compile_latex,
     replace_inline_code,
+    convert_manual_syntax_highlighting,
     highlight_code,
     replace_newlines,
     replace_ellipses,
     replace_dashes,
     add_smart_quotes,
     remove_extraneous_spaces,
-    add_footnotes,
-    convert_manual_syntax_highlighting
+    add_footnotes
 ]
 
 def create_asset_dirs():
