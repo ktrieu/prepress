@@ -506,8 +506,10 @@ if __name__ == "__main__":
         transformed = "</article>\n<article>".join([article for article in transformed.split("</article><article>")])
         # Separate title and content cleanly
         transformed = "</title>\n<content>".join([article for article in transformed.split("</title><content>")])
-        # Remove extraneous items from beginnings of lists
+        # Remove extraneous items from beginning and end of lists
         transformed = "<ul>".join([thing for thing in transformed.split("<ul>\n")])
+        transformed = "</ul>".join([thing for thing in transformed.split("\n</ul>")])
         transformed = "<ol>".join([thing for thing in transformed.split("<ol>\n")])
+        transformed = "</ol>".join([thing for thing in transformed.split("\n</ol>")])
         output_file.write(transformed)
     print('Issue written.')
