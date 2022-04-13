@@ -22,7 +22,7 @@ import pylatex
 from PIL import Image
 
 import pygments as pyg
-from pygments.lexers import get_lexer_by_name, guess_lexer
+from pygments.lexers import get_lexer_by_name
 
 from smart_quotes import get_quote_direction, get_double_quote, get_single_quote
 from syntax_highlighting import IndFormatter, SyntaxHighlightType, SYNTAX_HIGHLIGHT_TAGS
@@ -275,36 +275,49 @@ def highlight_code(article: Article) -> Article:
     """Uses Pygments to highlight code in <pre> tags
     """
     pre_tag: bs4.NavigableString
-    lang_regex = re.compile(r'\s*##(\S+)##')
+    options_regex = re.compile(r'''
+    :(\S+?):  # Match the option name
+    [ \t]*    # Allow optional whitespace after option name
+    ([^\n]*)  # Match the option value (optional)
+    ''', re.VERBOSE)
+    options_block_regex = re.compile(rf'''
+    (?:                          # Look for an option
+        \s*                      # Unlimited leading whitespace
+        {options_regex.pattern}  # Match an option
+        \n                       # Enforce newline after each option
+    )+                           # Match multiple options
+    [ \t]*\n                     # Enforce two lines of separation between options block and code
+    ''', re.VERBOSE)
     formatter = IndFormatter()
     for pre_tag in article.content.find_all('pre'):
         # ignore if already highlighted
         if pre_tag.find(SYNTAX_HIGHLIGHT_TAGS.values()):
             continue
-        # Find language definition
+        # Parse options
         pre_text = html.escape(pre_tag.get_text())
+        options_block = options_block_regex.match(pre_text)
+        options = {}
+        if options_block:
+            pre_text = pre_text[options_block.end():]
+            for option_match in options_regex.finditer(options_block[0]):  # match and save options
+                options[option_match[1]] = option_match[2] or True  # if no value given, turn into boolean
+        # Find language definition
         lexer = None
-        lang_name = lang_regex.match(pre_text)
+        lang_name = options.get("language", options.get("lang", None))  # allow for language or lang options
         if lang_name:
             # Language name provided
-            pre_text = pre_text[lang_name.end():]
             try:
-                lexer = get_lexer_by_name(lang_name[1])
-            except pyg.util.ClassNotFound:
-                pass
-        if lexer is None:
-            # Language name lookup failed or not provided, try to guess
-            try:
-                lexer = guess_lexer(pre_text)
+                lexer = get_lexer_by_name(lang_name)
             except pyg.util.ClassNotFound:
                 # This pre failed, continue onto next pre tag
                 continue
 
-        # Highlight the code
-        pre_highlighted = pyg.highlight(pre_text.strip(), lexer, formatter)
-        pre_highlighted = pre_highlighted.replace('\n</pre>', '</pre>')
-        pre_highlighted = BeautifulSoup(pre_highlighted, 'html.parser')
-        pre_tag.replace_with(pre_highlighted)
+        if lexer:
+            # Highlight the code
+            pre_highlighted = pyg.highlight(pre_text.strip(), lexer, formatter)
+            pre_highlighted = pre_highlighted.replace('\n</pre>', '</pre>')
+            pre_highlighted = BeautifulSoup(pre_highlighted, 'html.parser')
+            pre_tag.replace_with(pre_highlighted)
 
     return article
 
@@ -399,6 +412,15 @@ def remove_extraneous_spaces(article: Article) -> Article:
         text_tag.replace_with(new_tag)
     return article
 
+def normalize_newlines(article: Article) -> Article:
+    """Normalizes newlines to Unix-style LF
+    """
+    text_tag: bs4.NavigableString
+    for text_tag in article.content.find_all(text=True):
+        new_tag = text_tag.replace('\r\n', '\n')
+        text_tag.replace_with(new_tag)
+    return article
+
 def replace_newlines(article: Article) -> Article:
     """Replaces newlines with the Unicode LINE SEPARATOR character (U+2028). This preserves
     them in InDesign, which will treat newlines as paragraph breaks otherwise.
@@ -417,8 +439,8 @@ def replace_newlines(article: Article) -> Article:
             #        with a tag. Disambiguate between block and inline tags?
             prev_sibling = text_tag.find_previous_sibling()
             next_sibling = text_tag.find_next_sibling()
-            # Turn CRLF into LF and split along single line breaks
-            new_tag_builder = re.split('(?<!\n)\n(?!\n)', re.sub('\r\n', '\n', text_tag))
+            # Split along single line breaks
+            new_tag_builder = re.split('(?<!\n)\n(?!\n)', text_tag)
             # Keep single line breaks that appear next to another tag, by throwing them out and
             # manually placing a newline character
             prefix = ''
@@ -462,6 +484,7 @@ result saved back to the article list.
 Use this to make any changes to articles you need before export, as well as to generate assets.
 """
 POST_PROCESS: List[Callable[[Article], Article]] = [
+    normalize_newlines,
     download_images,
     compile_latex,
     replace_inline_code,
