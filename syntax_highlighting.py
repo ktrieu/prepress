@@ -11,6 +11,12 @@ class SyntaxHighlightType(enum.Enum):
 SYNTAX_HIGHLIGHT_PREFIX = 'mathnews--code-'
 SYNTAX_HIGHLIGHT_TAGS = { member: SYNTAX_HIGHLIGHT_PREFIX + member.value for member in SyntaxHighlightType }
 
+def get_syntax_highlight_tag_name(tag_type: SyntaxHighlightType) -> str:
+    return SYNTAX_HIGHLIGHT_TAGS[tag_type]
+
+def is_highlighted(text: str) -> bool:
+    return any(tag in text for tag in SYNTAX_HIGHLIGHT_TAGS.values())
+
 class IndFormatter(Formatter):
     """InDesign compatible formatter, based on https://pygments.org/docs/formatterdevelopment/#html-3-2-formatter
     """
@@ -39,8 +45,8 @@ class IndFormatter(Formatter):
                 tag_type = SyntaxHighlightType.Underline
 
             if tag_type != None:
-                start = f'<{SYNTAX_HIGHLIGHT_TAGS[tag_type]}>'
-                end = f'</{SYNTAX_HIGHLIGHT_TAGS[tag_type]}>'
+                start = f'<{get_syntax_highlight_tag_name(tag_type)}>'
+                end = f'</{get_syntax_highlight_tag_name(tag_type)}>'
 
             self.styles[token] = (start, end)
 
@@ -52,9 +58,6 @@ class IndFormatter(Formatter):
         # try to join the values of same-type tokens here
         lastval = ''
         lasttype = None
-
-        # wrap the whole output with <pre>
-        outfile.write('<pre>')
 
         for ttype, value in tokensource:
             # if the token type doesn't exist in the stylemap
@@ -83,4 +86,3 @@ class IndFormatter(Formatter):
         if lastval:
             stylebegin, styleend = self.styles[lasttype]
             outfile.write(stylebegin + lastval + styleend)
-        outfile.write('</pre>\n')

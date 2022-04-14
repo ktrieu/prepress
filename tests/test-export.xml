@@ -2914,7 +2914,9 @@ Compile this code. What does it print?
 operator(): 2
 operator(): 3</pre>
 Oh, neat, the modified copy-capture of <code>x</code> gets preserved across invocations of the lambda. Also, hey, I thought that operator() was a member function given to classes to make them act like... oh... oh no. Computer, <em>enhance</em>.
-<pre><strong>int</strong> main() {
+<pre>:linenos:
+
+<strong>int</strong> main() {
   <strong>int</strong> x = 0;
   <strong>auto</strong> fun = [=]() <em>mutable</em> -&gt; <strong>void</strong> {
     ++x;
@@ -2929,6 +2931,7 @@ main()::&lt;lambda()&gt; mutable: 3</pre>
 Okay. So, you probably learned in a certain second-year CS course that classes in C++ can be fitted with an <code>operator()</code> method, which lets you "invoke" objects of the class as if the+y were a function.  In an effort to sound like mathematicians, we call a class equipped with this method a <em>functor</em>. The nice thing about these so-called functors is that they <em>preserve state</em>. In particular, the data members of the class can be seen as state indicators to the function, so that information can be preserved across invocations. Here's a cute little example:
 <pre>
     :lang: c++
+    :linenos:
 
 struct Functor {
   int x = 0;

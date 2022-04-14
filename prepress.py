@@ -25,7 +25,7 @@ import pygments as pyg
 from pygments.lexers import get_lexer_by_name
 
 from smart_quotes import get_quote_direction, get_double_quote, get_single_quote
-from syntax_highlighting import IndFormatter, SyntaxHighlightType, SYNTAX_HIGHLIGHT_TAGS
+from syntax_highlighting import IndFormatter, SyntaxHighlightType, get_syntax_highlight_tag_name
 
 #The directory to store generated assets. Can be changed by command line argument.
 ASSET_DIR = 'assets'
@@ -261,13 +261,13 @@ def convert_manual_syntax_highlighting(article: Article) -> Article:
     for verb_tag in article.content.find_all(VERBATIM_TAGS):
         # Highlight strong
         for strong_tag in verb_tag.find_all(["strong", "b"]):
-            strong_tag.name = SYNTAX_HIGHLIGHT_TAGS[SyntaxHighlightType.Bold]
+            strong_tag.name = get_syntax_highlight_tag_name(SyntaxHighlightType.Bold)
         # Highlight italicized
         for em_tag in verb_tag.find_all(["em", "i"]):
-            em_tag.name = SYNTAX_HIGHLIGHT_TAGS[SyntaxHighlightType.Italic]
+            em_tag.name = get_syntax_highlight_tag_name(SyntaxHighlightType.Italic)
         # Highlight underlined
         for u_tag in verb_tag.find_all("u"):
-            u_tag.name = SYNTAX_HIGHLIGHT_TAGS[SyntaxHighlightType.Underline]
+            u_tag.name = get_syntax_highlight_tag_name(SyntaxHighlightType.Underline)
 
     return article
 
@@ -286,38 +286,46 @@ def highlight_code(article: Article) -> Article:
         {options_regex.pattern}  # Match an option
         \n                       # Enforce newline after each option
     )+                           # Match multiple options
-    [ \t]*\n                     # Enforce two lines of separation between options block and code
+    [ \t]*\n+                    # Enforce at least two lines of separation between options block and code
     ''', re.VERBOSE)
     formatter = IndFormatter()
     for pre_tag in article.content.find_all('pre'):
-        # ignore if already highlighted
-        if pre_tag.find(SYNTAX_HIGHLIGHT_TAGS.values()):
-            continue
         # Parse options
-        pre_text = html.escape(pre_tag.get_text())
-        options_block = options_block_regex.match(pre_text)
+        pre_contents = pre_tag.decode_contents()
+        options_block = options_block_regex.match(pre_contents)
         options = {}
         if options_block:
-            pre_text = pre_text[options_block.end():]
+            pre_contents = pre_contents[options_block.end():]
             for option_match in options_regex.finditer(options_block[0]):  # match and save options
                 options[option_match[1]] = option_match[2] or True  # if no value given, turn into boolean
-        # Find language definition
+
+        # Find lexer for the given language
         lexer = None
-        lang_name = options.get("language", options.get("lang", None))  # allow for language or lang options
+        lang_name = options.get('language', options.get('lang', None))  # allow for language or lang options
         if lang_name:
             # Language name provided
             try:
                 lexer = get_lexer_by_name(lang_name)
             except pyg.util.ClassNotFound:
-                # This pre failed, continue onto next pre tag
-                continue
+                pass
 
+        # Highlight the code
         if lexer:
-            # Highlight the code
-            pre_highlighted = pyg.highlight(pre_text.strip(), lexer, formatter)
-            pre_highlighted = pre_highlighted.replace('\n</pre>', '</pre>')
-            pre_highlighted = BeautifulSoup(pre_highlighted, 'html.parser')
-            pre_tag.replace_with(pre_highlighted)
+            pre_text = BeautifulSoup(pre_contents, 'html.parser').get_text()
+            pre_text = html.escape(pre_text).strip()
+            pre_text = pyg.highlight(pre_text, lexer, formatter)
+            # Strip ending whitespace
+            pre_contents = pre_text.rstrip()
+
+        # Add line numbers to code
+        if options.get('linenos', False):
+            first_line, *rest = pre_contents.split('\n')
+            pre_contents = f'<pre--lineno-start>{first_line}</pre--lineno-start>'
+            if rest:
+                pre_contents += '\n<pre--lineno>{}</pre--lineno>'.format('\n'.join(rest))
+
+        new_tag = BeautifulSoup(f'<pre>{pre_contents}</pre>', 'html.parser')
+        pre_tag.replace_with(new_tag)
 
     return article
 
@@ -427,11 +435,7 @@ def replace_newlines(article: Article) -> Article:
     """
     text_tag: bs4.NavigableString
     for text_tag in article.content.find_all(text=True):
-        if keep_verbatim(text_tag):
-            # Verbatim tags are simple
-            new_tag = re.sub('\n', LINE_SEPARATOR, text_tag)
-            text_tag.replace_with(new_tag)
-        else:
+        if not keep_verbatim(text_tag):
             # Non-verbatim tags must be handled separately, and we must make sure it's not a
             # double line-break (i.e. paragraph break). We also don't replace it if it's
             # immediately before or after a tag
