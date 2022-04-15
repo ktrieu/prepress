@@ -3,9 +3,8 @@ import os
 import os.path
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement
-from typing import Dict, List, Callable, Union
+from typing import Dict, List, Callable
 import re
-import itertools
 import urllib.request
 import urllib.parse
 import urllib.error
@@ -14,18 +13,15 @@ import shutil
 import hashlib
 import subprocess
 
-import ssl
-
 import bs4
 from bs4 import BeautifulSoup, Tag
 import pylatex
 from PIL import Image
 
-import pygments as pyg
-from pygments.lexers import get_lexer_by_name
-
-from smart_quotes import get_quote_direction, get_double_quote, get_single_quote
-from syntax_highlighting import IndFormatter, SyntaxHighlightType, get_syntax_highlight_tag_name
+from util import LINE_SEPARATOR, VERBATIM_TAGS, keep_verbatim
+from plugins.preformatted import highlight_code, add_linenos, wrap_lines
+from plugins.smart_quotes import get_quote_direction, get_double_quote, get_single_quote
+from plugins.syntax_highlighting import SyntaxHighlightType, get_syntax_highlight_tag_name
 
 #The directory to store generated assets. Can be changed by command line argument.
 ASSET_DIR = 'assets'
@@ -38,18 +34,9 @@ DPI = 300
 IMAGE_WIDTH_DEFAULT = 1138
 USER_AGENT = "curl/7.61" # 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:81.0) Gecko/20100101 Firefox/81.0'
 
-# Unicode LINE SEPARATOR character
-LINE_SEPARATOR = '\u2028'
-
 XML_NS = {
     'content': 'http://purl.org/rss/1.0/modules/content/'
 }
-
-# Tags within which we should not be replacing content
-VERBATIM_TAGS = ('pre', 'code')
-
-# Maximum length of a line in a code block
-MAX_PRE_LINE_LENGTH = 48
 
 #this is illegal or whatever, but I am the law.
 urllib.request.URLopener.version = USER_AGENT
@@ -111,9 +98,6 @@ def filter_articles(tree: ElementTree, issue_num: str) -> List[Article]:
         article.content = BeautifulSoup(article_text_content, 'html.parser')
         articles.append(article)
     return articles
-
-def keep_verbatim(tag: Union[Tag, bs4.NavigableString]) -> bool:
-    return tag.name in VERBATIM_TAGS or any(filter(lambda t: t.name in VERBATIM_TAGS, tag.parents))
 
 def replace_text_with_tag(sub_text: str,
                           repl_tag: Tag,
@@ -273,112 +257,6 @@ def convert_manual_syntax_highlighting(article: Article) -> Article:
             u_tag.name = get_syntax_highlight_tag_name(SyntaxHighlightType.Underline)
 
     return article
-
-def highlight_code(pre_contents: str, options: Dict[str, Union[str, bool]]) -> str:
-    # Find lexer for the given language
-    lang_name = options.get('language', options.get('lang', None))  # allow for language or lang options
-    try:
-        lexer = get_lexer_by_name(lang_name)
-    except pyg.util.ClassNotFound:
-        return pre_contents
-
-    # Highlight the code
-    formatter = IndFormatter()
-    pre_text = BeautifulSoup(pre_contents, 'html.parser').get_text()
-    pre_text = html.escape(pre_text).strip()
-    pre_text = pyg.highlight(pre_text, lexer, formatter)
-    # Strip ending whitespace
-    return pre_text.rstrip()
-
-def add_linenos(pre_contents: str, options: Dict[str, Union[str, bool]]) -> str:
-    # Add line numbers to code
-    if options.get('linenos', False):
-        first_line, *rest = pre_contents.split('\n')
-        pre_contents = f'<mathnews-pre--lineno-start>{first_line}</mathnews-pre--lineno-start>'
-        if rest:
-            pre_contents += '\n<mathnews-pre--lineno>{}</mathnews-pre--lineno>'.format('\n'.join(rest))
-
-    return pre_contents
-
-def wrap_lines(pre_tag: bs4.Tag) -> bs4.Tag:
-    # Insert line-wraps
-    # Our first step is to create a changeset for the plaintext version
-    pre_text = pre_tag.get_text()
-    pre_lines = pre_text.split('\n')
-    changeset = []
-    running_offset = 0
-    for line in pre_lines:
-        cur_line_start = 0
-        line_len = len(line)
-        max_len_offset = 0  # Leave space for the line continuation character
-        while line_len - cur_line_start > MAX_PRE_LINE_LENGTH - max_len_offset:
-            split_at = cur_line_start + MAX_PRE_LINE_LENGTH - max_len_offset
-            # find a break point
-            while (split_at > cur_line_start and
-                   line[split_at - 1] not in frozenset(' ,;()[]{}<>&|=/-+*_')):
-                split_at -= 1
-            if split_at < cur_line_start + MAX_PRE_LINE_LENGTH // 2:
-                # couldn't find suitable break point, have to split in the middle of a word
-                split_at = cur_line_start + MAX_PRE_LINE_LENGTH
-            changeset.append(running_offset + split_at)
-            cur_line_start = split_at
-            max_len_offset = 1  # one less column due to line continuation character
-
-        running_offset += line_len + 1
-
-    # Next, we match up the offsets of each text tag in the plaintext
-    text_tags = pre_tag.find_all(text=True)
-    tags_offset = []
-    running_len = 0
-    for offset, text_tag in enumerate(text_tags):
-        tags_offset.append(running_len)
-        running_len += len(text_tag)
-
-    # Finally, we apply the changeset
-    # We apply in reverse so that earlier changes don't mess up the offsets of later changes
-    cur_changeset_idx = len(changeset) - 1
-    line_end_correction = 0  # Leave out spaces at the end of lines
-    for cur_tag_idx in range(len(text_tags))[::-1]:
-        cur_tag = text_tags[cur_tag_idx]
-        cur_tag_offset = tags_offset[cur_tag_idx]
-        sub_tags = []
-        line_end = len(cur_tag) - line_end_correction
-        line_end_correction = 0
-
-        while cur_changeset_idx >= 0 and changeset[cur_changeset_idx] >= cur_tag_offset:
-            # apply changes
-            change_offset = changeset[cur_changeset_idx] - cur_tag_offset
-            sub_tags.append(cur_tag[change_offset:line_end])  # text after split
-            # Use RIGHTWARDS ARROW WITH HOOK (↪, U+21AA) to signify line continuation
-            line_cont = pre_tag.new_tag('mathnews-pre--ruby')
-            line_cont.string = '\u21aa'
-            sub_tags.append(line_cont)
-            sub_tags.append(LINE_SEPARATOR)
-
-            # Replace spaces at end of line with space symbol
-            line_end_correction = 0
-            if change_offset > 0 and cur_tag[change_offset - 1] == ' ':
-                line_end_correction = 1
-            elif change_offset == 0 and cur_tag_idx > 0:
-                # at a tag boundary, so must check preceding tag
-                if text_tags[cur_tag_idx - 1][-1] == ' ':
-                    line_end_correction = 1
-            if line_end_correction:
-                # Use OPEN BOX (␣, U+2423) to signify space
-                space_symb = pre_tag.new_tag('mathnews-pre--ruby')
-                space_symb.string = '\u2423'
-                sub_tags.append(space_symb)
-
-            line_end = change_offset - line_end_correction
-            cur_changeset_idx -= 1
-
-        # Add in whatever's left at the front of the current tag to the builder, then replace
-        if line_end > 0:
-            sub_tags.append(cur_tag[:line_end])
-            line_end_correction = 0
-        cur_tag.replace_with(*reversed(sub_tags))
-
-    return pre_tag
 
 def format_code_blocks(article: Article) -> Article:
     """Format code blocks by:
