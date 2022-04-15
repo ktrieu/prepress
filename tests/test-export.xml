@@ -2903,7 +2903,7 @@ Remember lambdas? How do they work? Why? Who cares? Me. I mean, those must've be
 Wrong. Wrong; wrong; wrong. You know how lambdas act like objects, right? Well, I shouldn't say they <em>act</em><em> like objects</em>--rather, they <em>are</em> objects. Okay, then an object needs a type. We've been glossing over this fact by just declaring our lambdas with <code>auto</code> all the time, but that seems rather obstructionist, hm? Let's take a look.
 <pre><strong>int </strong>main() {
 <strong>  int</strong> x;
-<strong>  auto</strong> fun = [=]() <strong>mutable</strong> -&gt; <strong>void</strong> {
+    auto fun = [=]() mutable -&gt; void {  // <b>Test </b>line breaks that go on and on and on and on and on and on and on and on and on and on for it simply never stops.
     ++x;
     std::cout &lt;&lt; __func__ &lt;&lt; ": " &lt;&lt; x &lt;&lt; std::endl;
   };
