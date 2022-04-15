@@ -8,11 +8,15 @@ from pygments import lexers, util
 from util import LINE_SEPARATOR
 from plugins.syntax_highlighting import IndFormatter
 
+Options = Dict[str, Union[str, bool]]
+
 # Maximum length of a line in a code block
 MAX_PRE_LINE_LENGTH = 48
 
 
-def highlight_code(pre_contents: str, options: Dict[str, Union[str, bool]]) -> str:
+def highlight_code(pre_contents: str, options: Options) -> str:
+    """ Add syntax highlighting to a code block
+    """
     # Find lexer for the given language
     lang_name = options.get('language', options.get('lang', None))  # allow for language or lang options
     try:
@@ -29,8 +33,9 @@ def highlight_code(pre_contents: str, options: Dict[str, Union[str, bool]]) -> s
     return pre_text.rstrip()
 
 
-def add_linenos(pre_contents: str, options: Dict[str, Union[str, bool]]) -> str:
-    # Add line numbers to code
+def add_linenos(pre_contents: str, options: Options) -> str:
+    """ Add line numbers to a code block
+    """
     if options.get('linenos', False):
         first_line, *rest = pre_contents.split('\n')
         pre_contents = f'<mathnews-pre--lineno-start>{first_line}</mathnews-pre--lineno-start>'
@@ -38,6 +43,52 @@ def add_linenos(pre_contents: str, options: Dict[str, Union[str, bool]]) -> str:
             pre_contents += '\n<mathnews-pre--lineno>{}</mathnews-pre--lineno>'.format('\n'.join(rest))
 
     return pre_contents
+
+
+def find_best_break(line: str, offset: int, break_estimate: int) -> int:
+    """Find the best place to insert a line break based on the weight of a token
+    """
+    # Token weights indicate how far back the algorithm should search for a token with lower weight/higher priority
+    find_best_break.map = {
+        ' ': 0,
+        ',': 0,
+        ';': 0,
+        '%': 2,
+        '^': 2,
+        '/': 3,
+        '&': 3,
+        '|': 3,
+        '+': 3,
+        '-': 3,
+        '*': 3,
+        '=': 4,
+        '}': 4,
+        '{': 5,
+        ')': 5,
+        '(': 6,
+        ']': 5,
+        '[': 6,
+        '>': 5,
+        '<': 6,
+        '_': MAX_PRE_LINE_LENGTH,  # Tokens likely to appear in the middle of a word, or as punctuation, are given
+        '.': MAX_PRE_LINE_LENGTH,  # highest weight/lowest priority
+        '!': MAX_PRE_LINE_LENGTH,
+        '?': MAX_PRE_LINE_LENGTH
+    }
+    break_at = MAX_PRE_LINE_LENGTH
+    break_priority = float('inf')
+    search_lower_lim = MAX_PRE_LINE_LENGTH // 2
+    while break_estimate > search_lower_lim:
+        break_candidate = line[offset + break_estimate - 1]
+        if break_candidate in find_best_break.map and find_best_break.map[break_candidate] < break_priority:
+            # Found a line break candidate
+            break_priority = find_best_break.map[break_candidate]
+            break_at = break_estimate
+            # Make sure not to backtrack beyond previous limits
+            search_lower_lim = max(search_lower_lim, break_estimate - break_priority)
+        break_estimate -= 1
+
+    return break_at
 
 
 def wrap_lines(pre_tag: bs4.Tag) -> bs4.Tag:
@@ -52,16 +103,10 @@ def wrap_lines(pre_tag: bs4.Tag) -> bs4.Tag:
         line_len = len(line)
         max_len_offset = 0  # Leave space for the line continuation character
         while line_len - cur_line_start > MAX_PRE_LINE_LENGTH - max_len_offset:
-            split_at = cur_line_start + MAX_PRE_LINE_LENGTH - max_len_offset
             # find a break point
-            while (split_at > cur_line_start and
-                   line[split_at - 1] not in frozenset(' ,;()[]{}<>&|=/-+*_')):
-                split_at -= 1
-            if split_at < cur_line_start + MAX_PRE_LINE_LENGTH // 2:
-                # couldn't find suitable break point, have to split in the middle of a word
-                split_at = cur_line_start + MAX_PRE_LINE_LENGTH
-            changeset.append(running_offset + split_at)
-            cur_line_start = split_at
+            split_at = find_best_break(line, cur_line_start, MAX_PRE_LINE_LENGTH - max_len_offset)
+            cur_line_start += split_at
+            changeset.append(running_offset + cur_line_start)
             max_len_offset = 1  # one less column due to line continuation character
 
         running_offset += line_len + 1  # add one for newline character

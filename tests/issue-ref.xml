@@ -323,8 +323,8 @@ issue_articles = "lotsofwinningarticles"
         inflect_rename = inflect.engine()
         groupby_list = []
         <mathnews--code-strong>for</mathnews--code-strong> x <mathnews--code-strong>in</mathnews--code-strong> range(len(gram_list[0])):
-            df.rename(columns={x: inflect_ <mathnews-pre--ruby>↪</mathnews-pre--ruby>rename.ordinal(x + 1)}, inplace=<mathnews--code-strong>True</mathnews--code-strong>)
-            groupby_list.append(inflect_ <mathnews-pre--ruby>↪</mathnews-pre--ruby>rename.ordinal(x + 1))
+            df.rename(columns={x:<mathnews-pre--ruby>␣</mathnews-pre--ruby> <mathnews-pre--ruby>↪</mathnews-pre--ruby>inflect_rename.ordinal(x + 1)}, inplace=<mathnews--code-strong>True</mathnews--code-strong>)
+            groupby_list.append( <mathnews-pre--ruby>↪</mathnews-pre--ruby>inflect_rename.ordinal(x + 1))
         <mathnews--code-strong>return</mathnews--code-strong> df.groupby(groupby_list).size() <mathnews-pre--ruby>↪</mathnews-pre--ruby>.reset_index().rename(columns={0:<mathnews-pre--ruby>␣</mathnews-pre--ruby> <mathnews-pre--ruby>↪</mathnews-pre--ruby>"occurrences"}).sort_values(by="occurrences",<mathnews-pre--ruby>␣</mathnews-pre--ruby> <mathnews-pre--ruby>↪</mathnews-pre--ruby>ascending=<mathnews--code-strong>False</mathnews--code-strong>)[:50]
 c = Process(issue_articles)</code></pre>
  </content></article>
