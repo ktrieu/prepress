@@ -304,17 +304,17 @@ With a larger input dataset and more funding and time for the researchers involv
 <mathnews--code-strong>import</mathnews--code-strong> <mathnews--code-strong>collections</mathnews--code-strong>
 <mathnews--code-strong>import</mathnews--code-strong> <mathnews--code-strong>pandas</mathnews--code-strong> <mathnews--code-strong>as</mathnews--code-strong> <mathnews--code-strong>pd</mathnews--code-strong>
 <mathnews--code-strong>import</mathnews--code-strong> <mathnews--code-strong>inflect</mathnews--code-strong>
-issue_articles = "lotsofwinningarticles"
+issue_articles = <mathnews--code-em>"lotsofwinningarticles"</mathnews--code-em>
 <mathnews--code-strong>class</mathnews--code-strong> <mathnews--code-strong>Process</mathnews--code-strong>:
     <mathnews--code-strong>def</mathnews--code-strong> __init__(self, article):
-        f = open(article, "r").read()
-        f.replace("\n", " ").lower()
-        f = &amp;<mathnews--code-em>#x27; '.join(f.split())</mathnews--code-em>
+        f = open(article, <mathnews--code-em>"r"</mathnews--code-em>).read()
+        f.replace(<mathnews--code-em>"</mathnews--code-em><mathnews--code-em2>\n</mathnews--code-em2><mathnews--code-em>"</mathnews--code-em>, <mathnews--code-em>" "</mathnews--code-em>).lower()
+        f = <mathnews--code-em>' '</mathnews--code-em>.join(f.split())
         twogram = self.__generalNGram__(f, 3)
         print(self.createFrequencyTable(twogram) <mathnews-pre--ruby>↪</mathnews-pre--ruby>)
     <mathnews--code-strong>def</mathnews--code-strong> __generalNGram__(self, text, ngram):
         out = []
-        text = text.split(" ")
+        text = text.split(<mathnews--code-em>" "</mathnews--code-em>)
         <mathnews--code-strong>for</mathnews--code-strong> i <mathnews--code-strong>in</mathnews--code-strong> range(len(text)- ngram + 1):
             out.append(text[i:i+ngram])
         <mathnews--code-strong>return</mathnews--code-strong> out
@@ -325,7 +325,7 @@ issue_articles = "lotsofwinningarticles"
         <mathnews--code-strong>for</mathnews--code-strong> x <mathnews--code-strong>in</mathnews--code-strong> range(len(gram_list[0])):
             df.rename(columns={x:<mathnews-pre--ruby>␣</mathnews-pre--ruby> <mathnews-pre--ruby>↪</mathnews-pre--ruby>inflect_rename.ordinal(x + 1)}, inplace=<mathnews--code-strong>True</mathnews--code-strong>)
             groupby_list.append( <mathnews-pre--ruby>↪</mathnews-pre--ruby>inflect_rename.ordinal(x + 1))
-        <mathnews--code-strong>return</mathnews--code-strong> df.groupby(groupby_list).size() <mathnews-pre--ruby>↪</mathnews-pre--ruby>.reset_index().rename(columns={0:<mathnews-pre--ruby>␣</mathnews-pre--ruby> <mathnews-pre--ruby>↪</mathnews-pre--ruby>"occurrences"}).sort_values(by="occurrences",<mathnews-pre--ruby>␣</mathnews-pre--ruby> <mathnews-pre--ruby>↪</mathnews-pre--ruby>ascending=<mathnews--code-strong>False</mathnews--code-strong>)[:50]
+        <mathnews--code-strong>return</mathnews--code-strong> df.groupby(groupby_list).size() <mathnews-pre--ruby>↪</mathnews-pre--ruby>.reset_index().rename(columns={0:<mathnews--code-em><mathnews-pre--ruby>␣</mathnews-pre--ruby> <mathnews-pre--ruby>↪</mathnews-pre--ruby>"occurrences"</mathnews--code-em>}).sort_values(by=<mathnews--code-em>"occurrences"</mathnews--code-em>,<mathnews-pre--ruby>␣</mathnews-pre--ruby> <mathnews-pre--ruby>↪</mathnews-pre--ruby>ascending=<mathnews--code-strong>False</mathnews--code-strong>)[:50]
 c = Process(issue_articles)</code></pre>
  </content></article>
 <article><title>ed(1) is Turing-Complete</title>
@@ -391,22 +391,22 @@ As Reddit user meltingdiamond put it, “The most impressive part of this is som
 AltGr
 <sup>1</sup>: https://sanctum.geek.nz/arabesque/actually-using-ed/ <sup>2</sup>: https://nixwindows.wordpress.com/2018/03/13/ed1-is-turing-complete/</content></article>
 <article><title>An short brainfuck to C transpiler in C</title>
-<content><pre><code>#include &lt;stdio.h&gt;
+<content><pre><code>#include <mathnews--code-em>&lt;stdio.h&gt;</mathnews--code-em>
 int main( void ) {
-    printf( "<mathnews--code-u>#</mathnews--code-u>include &lt;stdio.h&gt;<mathnews--code-u>\</mathnews--code-u>n" );
-    printf( "int main( void ){" );
-    printf( "char array[30000]; int p = 0;" );
+    printf( <mathnews--code-em>"#include &lt;stdio.h&gt;</mathnews--code-em><mathnews--code-em2>\n</mathnews--code-em2><mathnews--code-em>"</mathnews--code-em> );
+    printf( <mathnews--code-em>"int main( void ){"</mathnews--code-em> );
+    printf( <mathnews--code-em>"char array[30000]; int p = 0;"</mathnews--code-em> );
     <mathnews--code-strong>for</mathnews--code-strong>( char c = getchar(); c != EOF; c =<mathnews-pre--ruby>␣</mathnews-pre--ruby> <mathnews-pre--ruby>↪</mathnews-pre--ruby>getchar() ) { <mathnews--code-strong>switch</mathnews--code-strong> (c) {
-        <mathnews--code-strong>case</mathnews--code-strong> &amp;<mathnews--code-u>#</mathnews--code-u>x27;&gt;&amp;<mathnews--code-u>#</mathnews--code-u>x27; : printf( "p++;" );
-        <mathnews--code-strong>case</mathnews--code-strong> &amp;<mathnews--code-u>#</mathnews--code-u>x27;&lt;&amp;<mathnews--code-u>#</mathnews--code-u>x27; : printf( "p--;" );
-        <mathnews--code-strong>case</mathnews--code-strong> &amp;<mathnews--code-u>#</mathnews--code-u>x27;+&amp;<mathnews--code-u>#</mathnews--code-u>x27; : printf( "array[p]++ <mathnews-pre--ruby>↪</mathnews-pre--ruby>;" );
-        <mathnews--code-strong>case</mathnews--code-strong> &amp;<mathnews--code-u>#</mathnews--code-u>x27;-&amp;<mathnews--code-u>#</mathnews--code-u>x27; : printf( "array[p]-- <mathnews-pre--ruby>↪</mathnews-pre--ruby>;" );
-        <mathnews--code-strong>case</mathnews--code-strong> &amp;<mathnews--code-u>#</mathnews--code-u>x27;.&amp;<mathnews--code-u>#</mathnews--code-u>x27; : printf( "putchar( <mathnews-pre--ruby>↪</mathnews-pre--ruby>array[p]);" );
-        <mathnews--code-strong>case</mathnews--code-strong> &amp;<mathnews--code-u>#</mathnews--code-u>x27;,&amp;<mathnews--code-u>#</mathnews--code-u>x27; : printf( "array[p]= <mathnews-pre--ruby>↪</mathnews-pre--ruby>getchar();" );
-        <mathnews--code-strong>case</mathnews--code-strong> &amp;<mathnews--code-u>#</mathnews--code-u>x27;[&amp;<mathnews--code-u>#</mathnews--code-u>x27; : printf( "<mathnews--code-strong>while</mathnews--code-strong>( <mathnews-pre--ruby>↪</mathnews-pre--ruby>array[p]){" );
-        <mathnews--code-strong>case</mathnews--code-strong> &amp;<mathnews--code-u>#</mathnews--code-u>x27;]&amp;<mathnews--code-u>#</mathnews--code-u>x27; : printf( "}" );
+        <mathnews--code-strong>case</mathnews--code-strong> <mathnews--code-em>'&gt;'</mathnews--code-em> : printf( <mathnews--code-em>"p++;"</mathnews--code-em> );
+        <mathnews--code-strong>case</mathnews--code-strong> <mathnews--code-em>'&lt;'</mathnews--code-em> : printf( <mathnews--code-em>"p--;"</mathnews--code-em> );
+        <mathnews--code-strong>case</mathnews--code-strong> <mathnews--code-em>'+'</mathnews--code-em> : printf( <mathnews--code-em>"array[p]++;"</mathnews--code-em> );
+        <mathnews--code-strong>case</mathnews--code-strong> <mathnews--code-em>'-'</mathnews--code-em> : printf( <mathnews--code-em>"array[p]--;"</mathnews--code-em> );
+        <mathnews--code-strong>case</mathnews--code-strong> <mathnews--code-em>'.'</mathnews--code-em> : printf( <mathnews--code-em>"putchar(array[p]);</mathnews--code-em><mathnews-pre--ruby>␣</mathnews-pre--ruby> <mathnews-pre--ruby>↪</mathnews-pre--ruby>);
+        <mathnews--code-strong>case</mathnews--code-strong> <mathnews--code-em>','</mathnews--code-em> : printf( <mathnews--code-em>"array[p]=getchar(); <mathnews-pre--ruby>↪</mathnews-pre--ruby>"</mathnews--code-em> );
+        <mathnews--code-strong>case</mathnews--code-strong> <mathnews--code-em>'['</mathnews--code-em> : printf( <mathnews--code-em>"while(array[p]){"</mathnews--code-em> );
+        <mathnews--code-strong>case</mathnews--code-strong> <mathnews--code-em>']'</mathnews--code-em> : printf( <mathnews--code-em>"}"</mathnews--code-em> );
     }}
-    printf( "}" );
+    printf( <mathnews--code-em>"}"</mathnews--code-em> );
 }</code></pre></content></article>
 <article><title>A Ransom Note to Die For</title>
 <content>To  the course administrators of STAT 333, I have a message for you.

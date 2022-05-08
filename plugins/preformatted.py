@@ -1,4 +1,3 @@
-import html
 from typing import Dict, Union
 
 import bs4
@@ -25,9 +24,8 @@ def highlight_code(pre_contents: str, options: Options) -> str:
         return pre_contents
 
     # Highlight the code
-    formatter = IndFormatter()
-    pre_text = bs4.BeautifulSoup(pre_contents, 'html.parser').get_text()
-    pre_text = html.escape(pre_text).strip()
+    formatter = IndFormatter(style='bw')
+    pre_text = bs4.BeautifulSoup(pre_contents, 'html.parser').get_text().strip()
     pre_text = pyg.highlight(pre_text, lexer, formatter)
     # Strip ending whitespace
     return pre_text.rstrip()

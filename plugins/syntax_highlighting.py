@@ -1,4 +1,5 @@
 import enum
+import functools
 from pygments.formatter import Formatter
 
 class SyntaxHighlightType(enum.Enum):
@@ -10,6 +11,18 @@ class SyntaxHighlightType(enum.Enum):
 # Automatically generate the tag names
 SYNTAX_HIGHLIGHT_PREFIX = 'mathnews--code-'
 SYNTAX_HIGHLIGHT_TAGS = { member: SYNTAX_HIGHLIGHT_PREFIX + member.value for member in SyntaxHighlightType }
+
+__html_escape_lut = str.maketrans({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+})
+
+@functools.lru_cache()
+def html_escape(value):
+    return value.translate(__html_escape_lut)
 
 def get_syntax_highlight_tag_name(tag_type: SyntaxHighlightType) -> str:
     return SYNTAX_HIGHLIGHT_TAGS[tag_type]
@@ -50,7 +63,7 @@ class IndFormatter(Formatter):
 
             self.styles[token] = (start, end)
 
-    def format(self, tokensource, outfile):
+    def format_unencoded(self, tokensource, outfile):
         # lastval is a string we use for caching
         # because it's possible that an lexer yields a number
         # of consecutive tokens with the same token type.
@@ -60,6 +73,7 @@ class IndFormatter(Formatter):
         lasttype = None
 
         for ttype, value in tokensource:
+            value = html_escape(value)
             # if the token type doesn't exist in the stylemap
             # we try it with the parent of the token type
             # eg: parent of Token.Literal.String.Double is
