@@ -1,6 +1,6 @@
 import enum
-import functools
 from pygments.formatter import Formatter
+from util import html_escape
 
 class SyntaxHighlightType(enum.Enum):
     Bold = 'strong'
@@ -11,18 +11,6 @@ class SyntaxHighlightType(enum.Enum):
 # Automatically generate the tag names
 SYNTAX_HIGHLIGHT_PREFIX = 'mathnews--code-'
 SYNTAX_HIGHLIGHT_TAGS = { member: SYNTAX_HIGHLIGHT_PREFIX + member.value for member in SyntaxHighlightType }
-
-__html_escape_lut = str.maketrans({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;'
-})
-
-@functools.lru_cache()
-def html_escape(value):
-    return value.translate(__html_escape_lut)
 
 def get_syntax_highlight_tag_name(tag_type: SyntaxHighlightType) -> str:
     return SYNTAX_HIGHLIGHT_TAGS[tag_type]
