@@ -3,9 +3,8 @@ import os
 import os.path
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement
-from typing import List, Callable, Union
+from typing import Dict, List, Callable
 import re
-import itertools
 import urllib.request
 import urllib.parse
 import urllib.error
@@ -14,14 +13,15 @@ import shutil
 import hashlib
 import subprocess
 
-import ssl
-
 import bs4
 from bs4 import BeautifulSoup, Tag
 import pylatex
 from PIL import Image
 
-from smart_quotes import get_quote_direction, get_double_quote, get_single_quote
+from util import LINE_SEPARATOR, VERBATIM_TAGS, keep_verbatim
+from plugins.preformatted import highlight_code, add_linenos, wrap_lines
+from plugins.smart_quotes import get_quote_direction, get_double_quote, get_single_quote
+from plugins.syntax_highlighting import SyntaxHighlightType, get_syntax_highlight_tag_name
 
 #The directory to store generated assets. Can be changed by command line argument.
 ASSET_DIR = 'assets'
@@ -34,15 +34,9 @@ DPI = 300
 IMAGE_WIDTH_DEFAULT = 1138
 USER_AGENT = "curl/7.61" # 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:81.0) Gecko/20100101 Firefox/81.0'
 
-# Unicode LINE SEPARATOR character
-LINE_SEPARATOR = '\u2028'
-
 XML_NS = {
     'content': 'http://purl.org/rss/1.0/modules/content/'
 }
-
-# Tags within which we should not be replacing content
-VERBATIM_TAGS = ('pre', 'code')
 
 #this is illegal or whatever, but I am the law.
 urllib.request.URLopener.version = USER_AGENT
@@ -65,7 +59,7 @@ class Article:
         file_prefix = re.sub(r"\W",  "", self.title[0:10].encode('ascii', errors='ignore').decode().replace(' ', '_'))
         filename = file_prefix + '_' + file
         return os.path.join(ASSET_DIR, 'pdf', filename)
-    
+
     def to_xml_element(self) -> Element:
         article_tag = Element('article')
         title_tag = SubElement(article_tag, 'title')
@@ -85,9 +79,9 @@ def is_for_issue(article_tag: Element, issue_num: str) -> bool:
     return False
 
 def filter_articles(tree: ElementTree, issue_num: str) -> List[Article]:
-    """Given an ElementTree parsed from an XML dump, returns a list 
+    """Given an ElementTree parsed from an XML dump, returns a list
     of Article instances containing all the articles tagged with issue_num.
-    """ 
+    """
     root = tree.getroot()
     articles: List[Article] = []
     article_tags = root.findall('.//item')
@@ -104,9 +98,6 @@ def filter_articles(tree: ElementTree, issue_num: str) -> List[Article]:
         article.content = BeautifulSoup(article_text_content, 'html.parser')
         articles.append(article)
     return articles
-
-def keep_verbatim(tag: Union[Tag, bs4.NavigableString]) -> bool:
-    return tag.name in VERBATIM_TAGS or any(filter(lambda t: t.name in VERBATIM_TAGS, tag.parents))
 
 def replace_text_with_tag(sub_text: str,
                           repl_tag: Tag,
@@ -146,7 +137,7 @@ def resize_image(image_path: str):
 
 def download_images(article: Article) -> Article:
     """Looks through the article content for image tags and downloads them locally and saves
-    them as an asset. Then, it changes the link text to point to the local copy instead of 
+    them as an asset. Then, it changes the link text to point to the local copy instead of
     the web copy.
     """
     img_tag: Tag
@@ -257,13 +248,52 @@ def convert_manual_syntax_highlighting(article: Article) -> Article:
     for verb_tag in article.content.find_all(VERBATIM_TAGS):
         # Highlight strong
         for strong_tag in verb_tag.find_all(["strong", "b"]):
-            strong_tag.name = "mathNEWS--code-strong"
+            strong_tag.name = get_syntax_highlight_tag_name(SyntaxHighlightType.Bold)
         # Highlight italicized
         for em_tag in verb_tag.find_all(["em", "i"]):
-            em_tag.name = "mathNEWS--code-em"
+            em_tag.name = get_syntax_highlight_tag_name(SyntaxHighlightType.Italic)
         # Highlight underlined
         for u_tag in verb_tag.find_all("u"):
-            u_tag.name = "mathNEWS--code-u"
+            u_tag.name = get_syntax_highlight_tag_name(SyntaxHighlightType.Underline)
+
+    return article
+
+def format_code_blocks(article: Article) -> Article:
+    """Format code blocks by:
+      - Using Pygments to highlight code
+      - Inserting line numbers
+      - Wrapping code
+    """
+    pre_tag: bs4.NavigableString
+    options_regex = re.compile(r'''
+    :(\S+?):  # Match the option name
+    [ \t]*    # Allow optional whitespace after option name
+    ([^\n]*)  # Match the option value (optional)
+    ''', re.VERBOSE)
+    options_block_regex = re.compile(rf'''
+    (?:                          # Look for an option
+        \s*                      # Unlimited leading whitespace
+        {options_regex.pattern}  # Match an option
+        \n                       # Enforce newline after each option
+    )+                           # Match multiple options
+    [ \t]*\n+                    # Enforce at least two lines of separation between options block and code
+    ''', re.VERBOSE)
+    for pre_tag in article.content.find_all('pre'):
+        # Parse options
+        pre_contents = pre_tag.decode_contents()
+        options_block = options_block_regex.match(pre_contents)
+        options = {}
+        if options_block:
+            pre_contents = pre_contents[options_block.end():]
+            for option_match in options_regex.finditer(options_block[0]):  # match and save options
+                options[option_match[1]] = option_match[2] or True  # if no value given, turn into boolean
+
+        pre_contents = highlight_code(pre_contents, options)
+        pre_contents = add_linenos(pre_contents, options)
+
+        new_tag = wrap_lines(BeautifulSoup(f'<pre><code>{pre_contents}</code></pre>', 'html.parser'))
+
+        pre_tag.replace_with(new_tag)
 
     return article
 
@@ -301,7 +331,7 @@ def replace_dashes(article: Article) -> Article:
 def replace_smart_quotes(s: str):
     # create an array so we can modify this string
     char_array = list(s)
-    
+
     for idx, char in enumerate(char_array):
         before = None if idx == 0 else char_array[idx - 1]
         after = None if idx == len(char_array) - 1 else char_array[idx + 1]
@@ -312,7 +342,7 @@ def replace_smart_quotes(s: str):
             char_array[idx] = get_single_quote(direction)
 
     return ''.join(char_array)
-    
+
 def add_smart_quotes(article: Article) -> Article:
     """Replaces regular quotes with smart quotes. Works on double and single quotes."""
     text_tags: List[bs4.NavigableString] = list(article.content.find_all(text=True))
@@ -342,7 +372,7 @@ def add_smart_quotes(article: Article) -> Article:
             replaced = replaced[1:]
         if after_tag is not None:
             replaced = replaced[:-1]
-            
+
         tag.replace_with(replaced)
 
     return article
@@ -358,22 +388,43 @@ def remove_extraneous_spaces(article: Article) -> Article:
         text_tag.replace_with(new_tag)
     return article
 
+def normalize_newlines(article: Article) -> Article:
+    """Normalizes newlines to Unix-style LF
+    """
+    text_tag: bs4.NavigableString
+    for text_tag in article.content.find_all(text=True):
+        new_tag = text_tag.replace('\r\n', '\n')
+        text_tag.replace_with(new_tag)
+    return article
+
 def replace_newlines(article: Article) -> Article:
     """Replaces newlines with the Unicode LINE SEPARATOR character (U+2028). This preserves
     them in InDesign, which will treat newlines as paragraph breaks otherwise.
     """
     text_tag: bs4.NavigableString
     for text_tag in article.content.find_all(text=True):
-        if keep_verbatim(text_tag):
-            # Verbatim tags are simple
-            new_tag = re.sub('\n', LINE_SEPARATOR, text_tag)
-            text_tag.replace_with(new_tag)
-        elif text_tag != '\n':
+        if not keep_verbatim(text_tag):
             # Non-verbatim tags must be handled separately, and we must make sure it's not a
-            # double line-break (i.e. paragraph break)
-            new_tag = re.sub('(?<!\n)\n(?!\n)', LINE_SEPARATOR, text_tag)
+            # double line-break (i.e. paragraph break). We also don't replace it if it's
+            # immediately before or after a tag
+            # FIXME: this is actually a hacky solution that can fail for poetry where a line ends
+            #        with a tag. Disambiguate between block and inline tags?
+            prev_sibling = text_tag.find_previous_sibling()
+            next_sibling = text_tag.find_next_sibling()
+            # Split along single line breaks
+            new_tag_builder = re.split('(?<!\n)\n(?!\n)', text_tag)
+            # Keep single line breaks that appear next to another tag, by throwing them out and
+            # manually placing a newline character
+            prefix = ''
+            suffix = ''
+            if new_tag_builder[0] == '' and prev_sibling != None:
+                new_tag_builder = new_tag_builder[1:]
+                prefix = '\n'
+            if new_tag_builder[-1] == '' and next_sibling != None:
+                new_tag_builder = new_tag_builder[:-1]
+                suffix = '\n'
+            new_tag = bs4.NavigableString(prefix + LINE_SEPARATOR.join(new_tag_builder) + suffix)
             text_tag.replace_with(new_tag)
-            pass
     return article
 
 def add_footnotes(article: Article) -> Article:
@@ -399,22 +450,24 @@ def add_footnotes(article: Article) -> Article:
 
 """POST_PROCESS is a list of functions that take Article instances and return Article instances.
 
-For each article we parse, every function in this list will be applied to it in order, and the 
+For each article we parse, every function in this list will be applied to it in order, and the
 result saved back to the article list.
 
 Use this to make any changes to articles you need before export, as well as to generate assets.
 """
 POST_PROCESS: List[Callable[[Article], Article]] = [
+    normalize_newlines,
     download_images,
     compile_latex,
     replace_inline_code,
+    convert_manual_syntax_highlighting,
+    format_code_blocks,
     replace_newlines,
     replace_ellipses,
     replace_dashes,
     add_smart_quotes,
     remove_extraneous_spaces,
-    add_footnotes,
-    convert_manual_syntax_highlighting
+    add_footnotes
 ]
 
 def create_asset_dirs():
@@ -427,7 +480,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='article export for mathNEWS')
     parser.add_argument('issue', help='the issue number to export for, e.g, v141i3')
     parser.add_argument('xml_dump', help='location of the XML dump to read from')
-    parser.add_argument('-o', '--xml_output', 
+    parser.add_argument('-o', '--xml_output',
         help='location of the file to output to',
         default='issue.xml')
     parser.add_argument('-a', '--assets',
@@ -467,10 +520,10 @@ if __name__ == "__main__":
         transformed = "</article>\n<article>".join([article for article in transformed.split("</article><article>")])
         # Separate title and content cleanly
         transformed = "</title>\n<content>".join([article for article in transformed.split("</title><content>")])
-        # Remove extraneous items from beginnings of lists
+        # Remove extraneous items from beginning and end of lists
         transformed = "<ul>".join([thing for thing in transformed.split("<ul>\n")])
+        transformed = "</ul>".join([thing for thing in transformed.split("\n</ul>")])
         transformed = "<ol>".join([thing for thing in transformed.split("<ol>\n")])
-        # Separate tags and regular content cleanly
-        transformed = re.sub(f'(?<=>){LINE_SEPARATOR}|{LINE_SEPARATOR}(?=<)', '\n', transformed)
+        transformed = "</ol>".join([thing for thing in transformed.split("\n</ol>")])
         output_file.write(transformed)
     print('Issue written.')

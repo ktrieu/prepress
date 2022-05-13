@@ -1,4 +1,5 @@
 import enum
+from string import ascii_letters
 
 class QuoteDir(enum.Enum):
     Left = 'left',
@@ -42,6 +43,9 @@ def get_quote_direction(before: str, after: str):
     if after in RIGHT_PUNCTUATION:
         return QuoteDir.Right
 
+    # single quotes can appear within contractions
+    if before in ascii_letters and after in ascii_letters:
+        return QuoteDir.Right
 
     return QuoteDir.Straight
 
