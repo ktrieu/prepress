@@ -35,7 +35,7 @@ class IndFormatter(Formatter):
         for token, style in self.style:
             start = end = ''
             tag_type = None
-            # a style item is a tuple in the following form:
+
             if style['bold'] and style['italic']:
                 tag_type = SyntaxHighlightType.BoldItalic
             elif style['bold']:

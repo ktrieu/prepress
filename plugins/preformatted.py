@@ -38,7 +38,8 @@ def add_linenos(pre_contents: str, options: Options) -> str:
         first_line, *rest = pre_contents.split('\n')
         pre_contents = f'<mathnews-pre--lineno-start>{first_line}</mathnews-pre--lineno-start>'
         if rest:
-            pre_contents += '\n<mathnews-pre--lineno>{}</mathnews-pre--lineno>'.format('\n'.join(rest))
+            rest_joined = '\n'.join(rest)
+            pre_contents += f'\n<mathnews-pre--lineno>{rest_joined}</mathnews-pre--lineno>'
 
     return pre_contents
 
