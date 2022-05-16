@@ -18,7 +18,7 @@ from bs4 import BeautifulSoup, Tag
 import pylatex
 from PIL import Image
 
-from util import LINE_SEPARATOR, VERBATIM_TAGS, keep_verbatim
+from util import LINE_SEPARATOR, VERBATIM_TAGS, keep_verbatim, html_escape
 from plugins.preformatted import highlight_code, add_linenos, wrap_lines
 from plugins.smart_quotes import get_quote_direction, get_double_quote, get_single_quote
 from plugins.syntax_highlighting import SyntaxHighlightType, get_syntax_highlight_tag_name
@@ -35,7 +35,8 @@ IMAGE_WIDTH_DEFAULT = 1138
 USER_AGENT = "curl/7.61" # 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:81.0) Gecko/20100101 Firefox/81.0'
 
 XML_NS = {
-    'content': 'http://purl.org/rss/1.0/modules/content/'
+    'content': 'http://purl.org/rss/1.0/modules/content/',
+    'wp': 'http://wordpress.org/export/1.2/'
 }
 
 #this is illegal or whatever, but I am the law.
@@ -46,6 +47,7 @@ class Article:
     def __init__(self):
         self.author = ''
         self.title = ''
+        self.subtitle = ''
         #content is stored as a beautiful soup tree
         self.content: BeautifulSoup = None
 
@@ -62,11 +64,21 @@ class Article:
 
     def to_xml_element(self) -> Element:
         article_tag = Element('article')
+
         title_tag = SubElement(article_tag, 'title')
-        # encode into html entities
-        title_tag.text = self.title.replace('&', '&amp;').replace('<', '&lt;') if self.title else ""
+        title_tag.text = html_escape(self.title)
+
+        if self.subtitle:
+            subtitle_tag = SubElement(article_tag, 'subtitle')
+            subtitle_tag.text = html_escape(self.subtitle)
+
         content_tag = SubElement(article_tag, 'content')
         content_tag.text = str(self.content)
+
+        if self.author:
+            author_tag = SubElement(article_tag, 'author')
+            author_tag.text = html_escape(self.author)
+
         return article_tag
 
 def is_for_issue(article_tag: Element, issue_num: str) -> bool:
@@ -92,8 +104,17 @@ def filter_articles(tree: ElementTree, issue_num: str) -> List[Article]:
         #possible optimization, instead of calling find several times,
         #loop through tag children once and parse out data as we run into it
         article.title = article_tag.find('title').text
+        # go through post meta tags
+        post_meta_tags = article_tag.findall('wp:postmeta', XML_NS)
+        for post_meta_tag in post_meta_tags:
+            meta_key = post_meta_tag.find('wp:meta_key', XML_NS).text
+            meta_value = post_meta_tag.find('wp:meta_value', XML_NS).text
+
+            if meta_key == 'mn_subtitle':
+                article.subtitle = meta_value
+            elif meta_key == 'mn_author':
+                article.author = meta_value
         #we will post process this later
-        article.author = 'UNKNOWN AUTHOR'
         article_text_content = article_tag.find('content:encoded', XML_NS).text
         article.content = BeautifulSoup(article_text_content, 'html.parser')
         articles.append(article)
@@ -518,8 +539,11 @@ if __name__ == "__main__":
         transformed = "\n".join([line for line in html.unescape(ElementTree.tostring(root, encoding='unicode')).split("\n") if line.strip() != ''])
         # Separate articles cleanly
         transformed = "</article>\n<article>".join([article for article in transformed.split("</article><article>")])
-        # Separate title and content cleanly
+        # Separate title, subtitle, content, author cleanly
         transformed = "</title>\n<content>".join([article for article in transformed.split("</title><content>")])
+        transformed = "</title>\n<subtitle>".join([article for article in transformed.split("</title><subtitle>")])
+        transformed = "</subtitle>\n<content>".join([article for article in transformed.split("</subtitle><content>")])
+        transformed = "</content>\n<author>".join([article for article in transformed.split("</content><author>")])
         # Remove extraneous items from beginning and end of lists
         transformed = "<ul>".join([thing for thing in transformed.split("<ul>\n")])
         transformed = "</ul>".join([thing for thing in transformed.split("\n</ul>")])
