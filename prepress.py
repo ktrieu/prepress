@@ -48,8 +48,9 @@ class Article:
         self.author = ''
         self.title = ''
         self.subtitle = ''
-        #content is stored as a beautiful soup tree
+        # content and postscript is stored as a beautiful soup tree
         self.content: BeautifulSoup = None
+        self.postscript: BeautifulSoup = None
 
     def get_image_location(self, file: str) -> str:
         #generate a slug by trimming the title, replacing non-ascii chars, and replacing spaces
@@ -72,12 +73,20 @@ class Article:
             subtitle_tag = SubElement(article_tag, 'subtitle')
             subtitle_tag.text = html_escape(self.subtitle)
 
+        if self.author:
+            postscript_tag = self.content.find('footer')
+            author_tag = self.content.new_tag('address')
+            author_tag.string = self.author
+
+            if postscript_tag is not None:
+                postscript_tag.insert_before(author_tag)
+                postscript_tag.insert_before('\n')
+            else:
+                self.content.append('\n')
+                self.content.append(author_tag)
+
         content_tag = SubElement(article_tag, 'content')
         content_tag.text = str(self.content)
-
-        if self.author:
-            author_tag = SubElement(article_tag, 'author')
-            author_tag.text = html_escape(self.author)
 
         return article_tag
 
@@ -114,9 +123,17 @@ def filter_articles(tree: ElementTree, issue_num: str) -> List[Article]:
                 article.subtitle = meta_value
             elif meta_key == 'mn_author':
                 article.author = meta_value
+            elif meta_key == 'mn_postscript':
+                article.postscript = BeautifulSoup(meta_value, 'html.parser')
         #we will post process this later
         article_text_content = article_tag.find('content:encoded', XML_NS).text
         article.content = BeautifulSoup(article_text_content, 'html.parser')
+        # TODO: instead of appending to content, process postscript separately
+        if article.postscript is not None:
+            postscript_wrap = article.content.new_tag('footer')
+            postscript_wrap.append(article.postscript)
+            article.content.append('\n')
+            article.content.append(postscript_wrap)
         articles.append(article)
     return articles
 
@@ -539,11 +556,10 @@ if __name__ == "__main__":
         transformed = "\n".join([line for line in html.unescape(ElementTree.tostring(root, encoding='unicode')).split("\n") if line.strip() != ''])
         # Separate articles cleanly
         transformed = "</article>\n<article>".join([article for article in transformed.split("</article><article>")])
-        # Separate title, subtitle, content, author cleanly
+        # Separate title, subtitle, and content cleanly
         transformed = "</title>\n<content>".join([article for article in transformed.split("</title><content>")])
         transformed = "</title>\n<subtitle>".join([article for article in transformed.split("</title><subtitle>")])
         transformed = "</subtitle>\n<content>".join([article for article in transformed.split("</subtitle><content>")])
-        transformed = "</content>\n<author>".join([article for article in transformed.split("</content><author>")])
         # Remove extraneous items from beginning and end of lists
         transformed = "<ul>".join([thing for thing in transformed.split("<ul>\n")])
         transformed = "</ul>".join([thing for thing in transformed.split("\n</ul>")])

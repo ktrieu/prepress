@@ -1,4 +1,5 @@
 <issue><article><title>N Ways to type N</title>
+<subtitle>asdfasdfasfaf</subtitle>
 <content><pre><code>N	U+004E LATIN CAPITAL LETTER N
 n	U+006E LATIN SMALL LETTER N
 ⁿ	U+207F SUPERSCRIPT LATIN SMALL LETTER N
@@ -9,7 +10,8 @@ n	U+006E LATIN SMALL LETTER N
 ⓝ	U+24DD CIRCLED LATIN SMALL LETTER N
 Ｎ	U+FF2E FULLWIDTH LATIN CAPITAL LETTER N
 ｎ	U+FF4E FULLWIDTH LATIN SMALL LETTER N
-</code></pre></content></article>
+</code></pre>
+<address>random</address></content></article>
 <article><title>Interview with the Dean</title>
 <content><b><i>SketchED</i></b>:  And we have the Dean of Mathematics here. <b>Is there a name you want us to use, Ian Goulden, Dean of Mathematics, overlord of the grand scheme of things?</b>
 <strong><strong> </strong></strong>
@@ -434,7 +436,7 @@ E[X] = 3.5E[N]
 So the final result we see is that the expected ransom payment is 3.5 times the expected number of days. If we assume that N follows a geometric distribution with probability of payment on any given day of 1/4, this would give us an expected ransom payment of $14 for the die, however any proper waiting time random variable would suffice.
 I look forward to your response, course administrators of STAT 333. May the odds be ever in your favour.
 <strong>New&amp;Confused</strong></content></article>
-<article><title>I'm writing an article about a proof assistant</title>
+<article><title>I&#39;m writing an article about a proof assistant</title>
 <content><strong>Alternative title: Only 109* people will understand this article but I want pizza</strong>
 First year math students typically take three mandatory courses in their 1A term: MATH135, MATH137, and CS115/135. Each of these courses runs an advanced section, MATH145, MATH147, and CS145 respectively. Certain mathematically gifted students elect to take these courses. A number of other students, for whatever strange reason, also elect to take these courses despite their lack of extraordinary math ability. I fall into the latter category, and now find myself one of two situations at all times — I am either:
 <ol><li>Working on the MATH145 assignment, or</li>
@@ -588,7 +590,7 @@ Japanese — UGG: ウォータールー学部学生会
 Mandarin -  HBX: 滑铁卢本科生协会
 There are always languages people don’t know shit about. The world is too big after all, and Google Translate needs to be improved badly.
 Autowired</content></article>
-<article><title>Recursion's Infinity</title>
+<article><title>Recursion&#39;s Infinity</title>
 <content><em>When I posted my first novel excerpt, I wanted to title it “The First N Words of the Story (on which) I’m working (on)” to make a funny grammar joke. The editors did not think this was a good idea and changed it. To jokingly spite them, I wanted to, but didn’t, title my next novel excerpt “The (Next (N (Words (of (the (Story (I’m (Working (On))))))))))”. To my surprise, I was having trouble parsing this title in my head. Of course, I knew what it meant, but as I read through it slowly, I just couldn’t keep track of the parenthetical levels. The what? The next. The next what? The next N. The next N what? The next N Words. The next N words what? Wait, where was I again?</em>
 <pre><code>...RecursionError: maximum recursion depth<mathnews-pre--ruby>␣</mathnews-pre--ruby> <mathnews-pre--ruby>↪</mathnews-pre--ruby>exceeded...
  ...Exception in thread "main"<mathnews-pre--ruby>␣</mathnews-pre--ruby> <mathnews-pre--ruby>↪</mathnews-pre--ruby>java.lang.StackOverflowError...
@@ -748,8 +750,8 @@ The magic behind <link href="file:///home/terry/Documents/Projects/prepress/test
 <em>Exercise: prove that <link href="file:///home/terry/Documents/Projects/prepress/tests/assets/pdf/Stairway_C_7dc01dd6e16678148e55fd25973baca8551d0ae3.pdf"></link> and <link href="file:///home/terry/Documents/Projects/prepress/tests/assets/pdf/Stairway_C_e51841ecd253121bd7e5c6a6a460dad98d787797.pdf"></link> have the same limit. </em>The sequences converge very quickly, so in a few operations on a normal calculator, you can compute <link href="file:///home/terry/Documents/Projects/prepress/tests/assets/pdf/Stairway_C_8a7329cade99323c47c4e28a88efde832fdb9d44.pdf"></link> to high precision. Just remember that back when Gauss was your age, he had to do it by hand.
 <hr/>
 So there we go, the first floor of a multi-floor series dedicated to the constants that decorate the north-northeast stairwell in MC. (Special thanks to UW Unprint’s \(\LaTeX\) magic for making this article possible!) Next time, we pick back up at Floor 1 where we left off.
-<p style="text-align: right;">water</p>
-<p style="text-align: left;"><em>Exercise: don’t take the elevator.</em></p></content></article>
+<address>water</address>
+<footer><em>Exercise: don’t take the elevator.</em></footer></content></article>
 <article><title>Does \(\mathrm{mathNEWS}\) really support \(\LaTeX\)?</title>
 <content>[Editor’s note: …]
 In this article I will try to break the mathNEWS \(\LaTeX\) scripts.
@@ -765,7 +767,7 @@ How well does mathNEWS support bad \(\LaTeX\) code? The next two lines use wrong
 \[\int{{{{a}\]
 \[\frac{a}bb}\]
 Testing Expert</content></article>
-<article><title>"Nuclear emergency alert sent out in error" emergency alert sent out in error</title>
+<article><title>&quot;Nuclear emergency alert sent out in error&quot; emergency alert sent out in error</title>
 <content><strong>PICKERING</strong> — An emergency alert sent out to Ontario residents Sunday to correct a previous emergency alert transmitted in error about an incident at the Pickering Nuclear Generating Station was itself transmitted in error, according to the province.
 In a statement released on Tuesday, Ontario Power Generation, the agency responsible for the operation of the station, announced that an extremely serious Keter-class incident had indeed occurred. The agency warned of the seriousness of the incident, noting that the effects could potentially “exceed those of Chernobyl, Three Mile Island, Fukushima Daiichi, and Pickering combined.”
 An anonymous municipal official told us that the radiation levels in surrounding neighbourhoods are so high, police forces are attaching Geiger counters to their cruisers in lieu of sirens. Independent, verified sources from within the 10km exclusion zone have also sent in reports of plants quadrupling in size, talking frogs, and rocks spouting legs.

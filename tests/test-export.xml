@@ -2666,9 +2666,7 @@ The magic behind \(G\) is the "agm" part of its definition. The arithmetic-geome
 
 <hr />
 
-So there we go, the first floor of a multi-floor series dedicated to the constants that decorate the north-northeast stairwell in MC. (Special thanks to UW Unprint's \(\LaTeX\) magic for making this article possible!) Next time, we pick back up at Floor 1 where we left off.
-<p style="text-align: right;">water</p>
-<p style="text-align: left;"><em>Exercise: don't take the elevator.</em></p>]]></content:encoded>
+So there we go, the first floor of a multi-floor series dedicated to the constants that decorate the north-northeast stairwell in MC. (Special thanks to UW Unprint's \(\LaTeX\) magic for making this article possible!) Next time, we pick back up at Floor 1 where we left off.]]></content:encoded>
 		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
 		<wp:post_id>033</wp:post_id>
 		<wp:post_date>0000-00-00 00:00:00</wp:post_date>
@@ -2687,6 +2685,14 @@ So there we go, the first floor of a multi-floor series dedicated to the constan
 		<wp:postmeta>
 			<wp:meta_key>_edit_last</wp:meta_key>
 			<wp:meta_value><![CDATA[117]]></wp:meta_value>
+		</wp:postmeta>
+		<wp:postmeta>
+			<wp:meta_key><![CDATA[mn_author]]></wp:meta_key>
+			<wp:meta_value><![CDATA[water]]></wp:meta_value>
+		</wp:postmeta>
+		<wp:postmeta>
+			<wp:meta_key><![CDATA[mn_postscript]]></wp:meta_key>
+			<wp:meta_value><![CDATA[<em>Exercise: don't take the elevator.</em>]]></wp:meta_value>
 		</wp:postmeta>
 	</item>
 	<item>
