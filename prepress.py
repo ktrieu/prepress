@@ -34,6 +34,9 @@ DPI = 300
 IMAGE_WIDTH_DEFAULT = 1138
 USER_AGENT = "curl/7.61" # 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:81.0) Gecko/20100101 Firefox/81.0'
 
+# Name of category for approved articles
+APPROVED_CATEGORY = "Editor okayed"
+
 XML_NS = {
     'content': 'http://purl.org/rss/1.0/modules/content/',
     'wp': 'http://wordpress.org/export/1.2/'
@@ -92,12 +95,16 @@ class Article:
 
 def is_for_issue(article_tag: Element, issue_num: str) -> bool:
     """Returns True if the article given by the <item> tag article_tag
-    belongs to the issue given by issue_num.
+    belongs to the issue given by issue_num, and it is editor okayed
     """
+    has_correct_tag = False
+    has_approval = False
     for category in article_tag.findall('category'):
         if category.get('domain') == 'post_tag' and category.text == issue_num:
-            return True
-    return False
+            has_correct_tag = True
+        elif category.get('domain') == 'category' and category.text == APPROVED_CATEGORY:
+            has_approval = True
+    return has_correct_tag and has_approval
 
 def filter_articles(tree: ElementTree, issue_num: str) -> List[Article]:
     """Given an ElementTree parsed from an XML dump, returns a list

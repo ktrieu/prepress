@@ -890,7 +890,6 @@ quiz]]></content:encoded>
 		<wp:post_type>post</wp:post_type>
 		<wp:post_password></wp:post_password>
 		<wp:is_sticky>0</wp:is_sticky>
-		<category domain="category" nicename="editor-okayed"><![CDATA[Editor okayed]]></category>
 		<category domain="category" nicename="uncategorized"><![CDATA[Uncategorized]]></category>
 		<wp:postmeta>
 			<wp:meta_key>_edit_last</wp:meta_key>
@@ -1437,6 +1436,7 @@ c = Process(issue_articles)</pre>
 		<wp:post_type>post</wp:post_type>
 		<wp:post_password></wp:post_password>
 		<wp:is_sticky>0</wp:is_sticky>
+		<category domain="category" nicename="editor-okayed"><![CDATA[Editor okayed]]></category>
 		<category domain="category" nicename="uncategorized"><![CDATA[Uncategorized]]></category>
 		<category domain="post_tag" nicename="v1xxiy"><![CDATA[v1xxiy]]></category>
 		<wp:postmeta>
@@ -1537,6 +1537,7 @@ AltGr
 		<wp:post_password></wp:post_password>
 		<wp:is_sticky>0</wp:is_sticky>
 		<category domain="category" nicename="in-layout"><![CDATA[In Layout]]></category>
+		<category domain="category" nicename="editor-okayed"><![CDATA[Editor okayed]]></category>
 		<category domain="category" nicename="uncategorized"><![CDATA[Uncategorized]]></category>
 		<category domain="post_tag" nicename="v1xxiy"><![CDATA[v1xxiy]]></category>
 		<wp:postmeta>
@@ -2680,6 +2681,7 @@ So there we go, the first floor of a multi-floor series dedicated to the constan
 		<wp:post_type>post</wp:post_type>
 		<wp:post_password></wp:post_password>
 		<wp:is_sticky>0</wp:is_sticky>
+		<category domain="category" nicename="editor-okayed"><![CDATA[Editor okayed]]></category>
 		<category domain="category" nicename="uncategorized"><![CDATA[Uncategorized]]></category>
 		<category domain="post_tag" nicename="v1xxiy"><![CDATA[v1xxiy]]></category>
 		<wp:postmeta>
