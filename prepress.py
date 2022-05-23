@@ -156,12 +156,7 @@ def replace_text_with_tag(sub_text: str,
         parent = text_tag.parent
     tag_idx = parent.contents.index(text_tag)
     #replace the matched text with a tag
-    begin, *rest = text_tag.split(sub_text, maxsplit=1)
-    end: str
-    if len(rest):
-        end = rest[0]
-    else:
-        end = ""
+    begin, _, end = text_tag.partition(sub_text)
     #convert these strings to tags
     begin = bs4.NavigableString(begin)
     end = bs4.NavigableString(end)
@@ -169,6 +164,53 @@ def replace_text_with_tag(sub_text: str,
     parent.insert(tag_idx + 1, repl_tag)
     parent.insert(tag_idx + 2, end)
     return end
+
+def convert_imgur_embeds(article: Article) -> Article:
+    """Converts Imgur embeds of the form `[embed]https://imgur.com/...[/embed]` into image tags.
+    It does so by scraping the Imgur embed page and retrieving the image URL of the first image it sees.
+    As a result, we don't (yet) support multiple images.
+    """
+    imgur_url_regex = re.compile(r'''
+    (?:https?:)?//
+    (?:i\.)?                  # Don't care if the URL uses the i.imgur.com subdomain
+    imgur.com/
+    (?P<scheme>a/|gallery/)?  # Don't care about URL scheme
+    (?P<hash>\w{5}(?:\w\w)*)  # Match the gallery hash, which will be an odd number of characters
+    .?                        # Don't care about any extraneous characters
+    (?P<ext>\.\w+)?           # Match any potential file extensions
+    ''', re.VERBOSE | re.ASCII)
+    imgur_regex = re.compile(rf'''\[embed\]{imgur_url_regex.pattern}\[/embed\]''', re.VERBOSE | re.ASCII)
+    imgur_url_templ = 'https://i.imgur.com/{hash}{ext}'
+
+    for text_tag in article.content.find_all(text=True):
+        if keep_verbatim(text_tag): continue
+
+        for match in imgur_regex.finditer(text_tag):
+            img_url = imgur_url_templ.format(**match.groupdict())
+            if match['ext'] is None:
+                # No file extension, have to scrape
+                try:
+                    with urllib.request.urlopen('https://imgur.com/{scheme}{hash}/embed?pub=true'.format(**match.groupdict(default=''))) as resp:
+                        if resp.getcode() != 200:
+                            raise ValueError('Gallery does not exist')
+                        html_text = resp.read()
+                        imgur_soup = BeautifulSoup(html_text, 'html.parser')
+                    img_el = imgur_soup.find(id='image')
+                    if img_el is None:
+                        raise ValueError('Could not find image source in returned webpage')
+                except (urllib.error.HTTPError, ValueError) as e:
+                    print(f'Error downloading Imgur gallery {match[0]}. Reason: {e}')
+                    input('[Enter] to continue...')
+                    continue
+                # Filter url given in content
+                img_el = img_el.find('img', class_='post')
+                img_hash = imgur_url_regex.match(img_el['src'])
+                img_url = imgur_url_templ.format(**img_hash.groupdict())
+            # Replace embed code with an actual img tag
+            img_tag = article.content.new_tag('img', src=img_url)
+            text_tag = replace_text_with_tag(match[0], img_tag, text_tag, article)
+
+    return article
 
 def resize_image(image_path: str):
     """Resizes the image at image_path to a standard size so they don't import
@@ -190,7 +232,7 @@ def download_images(article: Article) -> Article:
         # try block because sometimes images without sources get added (don't ask me why)
         try:
             url = img_tag.attrs['src']
-        except:
+        except KeyError:
             continue
         filename = os.path.basename(urllib.parse.urlparse(url).path)
         local_path = article.get_image_location(filename)
@@ -502,6 +544,7 @@ Use this to make any changes to articles you need before export, as well as to g
 """
 POST_PROCESS: List[Callable[[Article], Article]] = [
     normalize_newlines,
+    convert_imgur_embeds,
     download_images,
     compile_latex,
     replace_inline_code,
