@@ -18,7 +18,7 @@ from bs4 import BeautifulSoup, Tag
 import pylatex
 from PIL import Image
 
-from util import LINE_SEPARATOR, VERBATIM_TAGS, keep_verbatim
+from util import LINE_SEPARATOR, VERBATIM_TAGS, keep_verbatim, html_escape
 from plugins.preformatted import highlight_code, add_linenos, wrap_lines
 from plugins.smart_quotes import get_quote_direction, get_double_quote, get_single_quote
 from plugins.syntax_highlighting import SyntaxHighlightType, get_syntax_highlight_tag_name
@@ -34,8 +34,12 @@ DPI = 300
 IMAGE_WIDTH_DEFAULT = 1138
 USER_AGENT = "curl/7.61" # 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:81.0) Gecko/20100101 Firefox/81.0'
 
+# Name of category for approved articles
+APPROVED_CATEGORY = "Editor okayed"
+
 XML_NS = {
-    'content': 'http://purl.org/rss/1.0/modules/content/'
+    'content': 'http://purl.org/rss/1.0/modules/content/',
+    'wp': 'http://wordpress.org/export/1.2/'
 }
 
 #this is illegal or whatever, but I am the law.
@@ -46,8 +50,10 @@ class Article:
     def __init__(self):
         self.author = ''
         self.title = ''
-        #content is stored as a beautiful soup tree
+        self.subtitle = ''
+        # content and postscript is stored as a beautiful soup tree
         self.content: BeautifulSoup = None
+        self.postscript: BeautifulSoup = None
 
     def get_image_location(self, file: str) -> str:
         #generate a slug by trimming the title, replacing non-ascii chars, and replacing spaces
@@ -62,21 +68,43 @@ class Article:
 
     def to_xml_element(self) -> Element:
         article_tag = Element('article')
+
         title_tag = SubElement(article_tag, 'title')
-        # encode into html entities
-        title_tag.text = self.title.replace('&', '&amp;').replace('<', '&lt;') if self.title else ""
+        title_tag.text = html_escape(self.title)
+
+        if self.subtitle:
+            subtitle_tag = SubElement(article_tag, 'subtitle')
+            subtitle_tag.text = html_escape(self.subtitle)
+
+        if self.author:
+            postscript_tag = self.content.find('footer')
+            author_tag = self.content.new_tag('address')
+            author_tag.string = self.author
+
+            if postscript_tag is not None:
+                postscript_tag.insert_before(author_tag)
+                postscript_tag.insert_before('\n')
+            else:
+                self.content.append('\n')
+                self.content.append(author_tag)
+
         content_tag = SubElement(article_tag, 'content')
         content_tag.text = str(self.content)
+
         return article_tag
 
 def is_for_issue(article_tag: Element, issue_num: str) -> bool:
     """Returns True if the article given by the <item> tag article_tag
-    belongs to the issue given by issue_num.
+    belongs to the issue given by issue_num, and it is editor okayed
     """
+    has_correct_tag = False
+    has_approval = False
     for category in article_tag.findall('category'):
         if category.get('domain') == 'post_tag' and category.text == issue_num:
-            return True
-    return False
+            has_correct_tag = True
+        elif category.get('domain') == 'category' and category.text == APPROVED_CATEGORY:
+            has_approval = True
+    return has_correct_tag and has_approval
 
 def filter_articles(tree: ElementTree, issue_num: str) -> List[Article]:
     """Given an ElementTree parsed from an XML dump, returns a list
@@ -92,10 +120,27 @@ def filter_articles(tree: ElementTree, issue_num: str) -> List[Article]:
         #possible optimization, instead of calling find several times,
         #loop through tag children once and parse out data as we run into it
         article.title = article_tag.find('title').text
+        # go through post meta tags
+        post_meta_tags = article_tag.findall('wp:postmeta', XML_NS)
+        for post_meta_tag in post_meta_tags:
+            meta_key = post_meta_tag.find('wp:meta_key', XML_NS).text
+            meta_value = post_meta_tag.find('wp:meta_value', XML_NS).text
+
+            if meta_key == 'mn_subtitle':
+                article.subtitle = meta_value
+            elif meta_key == 'mn_author':
+                article.author = meta_value
+            elif meta_key == 'mn_postscript':
+                article.postscript = BeautifulSoup(meta_value, 'html.parser')
         #we will post process this later
-        article.author = 'UNKNOWN AUTHOR'
         article_text_content = article_tag.find('content:encoded', XML_NS).text
         article.content = BeautifulSoup(article_text_content, 'html.parser')
+        # TODO: instead of appending to content, process postscript separately
+        if article.postscript is not None:
+            postscript_wrap = article.content.new_tag('footer')
+            postscript_wrap.append(article.postscript)
+            article.content.append('\n')
+            article.content.append(postscript_wrap)
         articles.append(article)
     return articles
 
@@ -111,12 +156,7 @@ def replace_text_with_tag(sub_text: str,
         parent = text_tag.parent
     tag_idx = parent.contents.index(text_tag)
     #replace the matched text with a tag
-    begin, *rest = text_tag.split(sub_text, maxsplit=1)
-    end: str
-    if len(rest):
-        end = rest[0]
-    else:
-        end = ""
+    begin, _, end = text_tag.partition(sub_text)
     #convert these strings to tags
     begin = bs4.NavigableString(begin)
     end = bs4.NavigableString(end)
@@ -124,6 +164,53 @@ def replace_text_with_tag(sub_text: str,
     parent.insert(tag_idx + 1, repl_tag)
     parent.insert(tag_idx + 2, end)
     return end
+
+def convert_imgur_embeds(article: Article) -> Article:
+    """Converts Imgur embeds of the form `[embed]https://imgur.com/...[/embed]` into image tags.
+    It does so by scraping the Imgur embed page and retrieving the image URL of the first image it sees.
+    As a result, we don't (yet) support multiple images.
+    """
+    imgur_url_regex = re.compile(r'''
+    (?:https?:)?//
+    (?:i\.)?                  # Don't care if the URL uses the i.imgur.com subdomain
+    imgur.com/
+    (?P<scheme>a/|gallery/)?  # Don't care about URL scheme
+    (?P<hash>\w{5}(?:\w\w)*)  # Match the gallery hash, which will be an odd number of characters
+    .?                        # Don't care about any extraneous characters
+    (?P<ext>\.\w+)?           # Match any potential file extensions
+    ''', re.VERBOSE | re.ASCII)
+    imgur_regex = re.compile(rf'''\[embed\]{imgur_url_regex.pattern}\[/embed\]''', re.VERBOSE | re.ASCII)
+    imgur_url_templ = 'https://i.imgur.com/{hash}{ext}'
+
+    for text_tag in article.content.find_all(text=True):
+        if keep_verbatim(text_tag): continue
+
+        for match in imgur_regex.finditer(text_tag):
+            img_url = imgur_url_templ.format(**match.groupdict())
+            if match['ext'] is None:
+                # No file extension, have to scrape
+                try:
+                    with urllib.request.urlopen('https://imgur.com/{scheme}{hash}/embed?pub=true'.format(**match.groupdict(default=''))) as resp:
+                        if resp.getcode() != 200:
+                            raise ValueError('Gallery does not exist')
+                        html_text = resp.read()
+                        imgur_soup = BeautifulSoup(html_text, 'html.parser')
+                    img_el = imgur_soup.find(id='image')
+                    if img_el is None:
+                        raise ValueError('Could not find image source in returned webpage')
+                except (urllib.error.HTTPError, ValueError) as e:
+                    print(f'Error downloading Imgur gallery {match[0]}. Reason: {e}')
+                    input('[Enter] to continue...')
+                    continue
+                # Filter url given in content
+                img_el = img_el.find('img', class_='post')
+                img_hash = imgur_url_regex.match(img_el['src'])
+                img_url = imgur_url_templ.format(**img_hash.groupdict())
+            # Replace embed code with an actual img tag
+            img_tag = article.content.new_tag('img', src=img_url)
+            text_tag = replace_text_with_tag(match[0], img_tag, text_tag, article)
+
+    return article
 
 def resize_image(image_path: str):
     """Resizes the image at image_path to a standard size so they don't import
@@ -145,7 +232,7 @@ def download_images(article: Article) -> Article:
         # try block because sometimes images without sources get added (don't ask me why)
         try:
             url = img_tag.attrs['src']
-        except:
+        except KeyError:
             continue
         filename = os.path.basename(urllib.parse.urlparse(url).path)
         local_path = article.get_image_location(filename)
@@ -457,6 +544,7 @@ Use this to make any changes to articles you need before export, as well as to g
 """
 POST_PROCESS: List[Callable[[Article], Article]] = [
     normalize_newlines,
+    convert_imgur_embeds,
     download_images,
     compile_latex,
     replace_inline_code,
@@ -518,8 +606,10 @@ if __name__ == "__main__":
         transformed = "\n".join([line for line in html.unescape(ElementTree.tostring(root, encoding='unicode')).split("\n") if line.strip() != ''])
         # Separate articles cleanly
         transformed = "</article>\n<article>".join([article for article in transformed.split("</article><article>")])
-        # Separate title and content cleanly
+        # Separate title, subtitle, and content cleanly
         transformed = "</title>\n<content>".join([article for article in transformed.split("</title><content>")])
+        transformed = "</title>\n<subtitle>".join([article for article in transformed.split("</title><subtitle>")])
+        transformed = "</subtitle>\n<content>".join([article for article in transformed.split("</subtitle><content>")])
         # Remove extraneous items from beginning and end of lists
         transformed = "<ul>".join([thing for thing in transformed.split("<ul>\n")])
         transformed = "</ul>".join([thing for thing in transformed.split("\n</ul>")])
